@@ -4,6 +4,8 @@
 class QTableWidget;
 class QLineEdit;
 class QCheckBox;
+class QSpinBox;
+class QHBoxLayout;
 
 class MainWindow : public QMainWindow
 {
@@ -17,11 +19,22 @@ private slots:
     void plotGraph();
     void runParetoOptimization();
     void selectSingleOption();
+    void updateTableSize();
+    void updateParameterCheckboxes();
+    bool validateTableData();
+    QVector<QVector<double>> getMatrixFromTable();
+    QVector<double> getWeights();
+    void updateWeightInputs();
 
 private:
     QTableWidget *table;
     QLineEdit *filePathEdit;
     QVector<QCheckBox *> parameterChecks;
+    QSpinBox *altSpin;
+    QSpinBox *critSpin;
+    QHBoxLayout *checksLayout;
     int numAlternatives = 0;
     int numCriteria = 0;
+    QVector<QLineEdit *> weightEdits;
+    QHBoxLayout *weightsLayout;
 };
