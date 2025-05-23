@@ -25,9 +25,11 @@ private slots:
     QVector<QVector<double>> getMatrixFromTable();
     QVector<double> getWeights();
     void updateWeightInputs();
+    void fillNormalizedTable();
+    void fillMinimizedTable();
 
 private:
-    QTableWidget *table;
+    QTableWidget *inputTable;
     QLineEdit *filePathEdit;
     QVector<QCheckBox *> parameterChecks;
     QSpinBox *altSpin;
@@ -37,4 +39,7 @@ private:
     int numCriteria = 0;
     QVector<QLineEdit *> weightEdits;
     QHBoxLayout *weightsLayout;
+    QTabWidget *tabWidget;
+    QTableWidget *normalizedTable;
+    QTableWidget *minimizedTable;
 };
