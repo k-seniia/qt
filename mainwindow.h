@@ -6,6 +6,7 @@ class QLineEdit;
 class QCheckBox;
 class QSpinBox;
 class QHBoxLayout;
+class QComboBox;
 
 class MainWindow : public QMainWindow
 {
@@ -22,11 +23,13 @@ private slots:
     void updateTableSize();
     void updateParameterCheckboxes();
     bool validateTableData();
-    QVector<QVector<double>> getMatrixFromTable();
+    QVector<QVector<double>> getMatrixFromTable(QTableWidget *table);
     QVector<double> getWeights();
     void updateWeightInputs();
     void fillNormalizedTable();
     void fillMinimizedTable();
+    QVector<QString> getOptimizationTargets();
+    void analyzeDominance();
 
 private:
     QTableWidget *inputTable;
@@ -42,4 +45,6 @@ private:
     QTabWidget *tabWidget;
     QTableWidget *normalizedTable;
     QTableWidget *minimizedTable;
+    QVector<QComboBox *> optimizationCombos;
+    QHBoxLayout *optimizationLayout;
 };
