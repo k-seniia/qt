@@ -16,6 +16,8 @@ add_executable(MultiCriteriaOptimization
     main.cpp
     mainwindow.cpp
     mainwindow.h
+
+    doubleitemdelegate.h doubleitemdelegate.cpp
 )
 
 target_link_libraries(MultiCriteriaOptimization Qt6::Widgets)

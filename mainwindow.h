@@ -17,8 +17,8 @@ public:
 
 private slots:
     void loadMatrixFromFile();
-    void plotGraph();
-    void runParetoOptimization();
+    //void plotGraph();
+    //void runParetoOptimization();
     void selectSingleOption();
     void updateTableSize();
     void updateParameterCheckboxes();
@@ -45,6 +45,8 @@ private:
     QTabWidget *tabWidget;
     QTableWidget *normalizedTable;
     QTableWidget *minimizedTable;
+    QTableWidget *paretoTable;
+    QTableWidget *valueFunctionTable;
     QVector<QComboBox *> optimizationCombos;
     QHBoxLayout *optimizationLayout;
 };

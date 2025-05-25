@@ -13,6 +13,7 @@
 #include <QTextStream>
 #include <QVBoxLayout>
 #include <QWidget>
+#include "doubleitemdelegate.h"
 
 MainWindow::MainWindow(
     QWidget *parent)
@@ -70,7 +71,7 @@ MainWindow::MainWindow(
     //
 
     //
-    QVector<QString> targets = getOptimizationTargets();
+    //QVector<QString> targets = getOptimizationTargets();
 
     QStringList headers;
     for (int i = 0; i < numCriteria; ++i)
@@ -84,7 +85,21 @@ MainWindow::MainWindow(
 
     minimizedTable = new QTableWidget(numAlternatives, numCriteria, this);
     minimizedTable->setHorizontalHeaderLabels(headers);
+
+    paretoTable = new QTableWidget(numAlternatives, numCriteria + 1, this);
+    headers << "Статус";
+    paretoTable->setHorizontalHeaderLabels(headers);
+
+    headers.clear();
+
+    valueFunctionTable = new QTableWidget(numAlternatives, 2, this);
+    headers << "Розрахунок";
+    headers << "Ф. цінності";
+    valueFunctionTable->setHorizontalHeaderLabels(headers);
     //
+
+    auto *doubleDelegate = new DoubleItemDelegate(this);
+    inputTable->setItemDelegate(doubleDelegate);
 
     //
     tabWidget = new QTabWidget(this);
@@ -92,6 +107,8 @@ MainWindow::MainWindow(
     tabWidget->addTab(inputTable, "Введення даних");
     tabWidget->addTab(normalizedTable, "Нормалізована матриця");
     tabWidget->addTab(minimizedTable, "Зведення до мінімізації");
+    tabWidget->addTab(paretoTable, "Парето оптимізація");
+    tabWidget->addTab(valueFunctionTable, "Вибір єдиного варіанта");
 
     mainLayout->addWidget(tabWidget);
     //
@@ -135,6 +152,10 @@ MainWindow::MainWindow(
     mainLayout->addWidget(analyzeDominanceButton);
     connect(analyzeDominanceButton, &QPushButton::clicked, this, &MainWindow::analyzeDominance);
 
+    QPushButton *singleOptionButton = new QPushButton("Вибір єдиного варіанта", this);
+    connect(singleOptionButton, &QPushButton::clicked, this, &MainWindow::selectSingleOption);
+    mainLayout->addWidget(singleOptionButton);
+
     /*QPushButton *plotButton = new QPushButton("Побудувати графік", this);
     connect(plotButton, &QPushButton::clicked, this, &MainWindow::plotGraph);
     mainLayout->addWidget(plotButton);*/
@@ -142,10 +163,6 @@ MainWindow::MainWindow(
     /*QPushButton *paretoButton = new QPushButton("Парето-оптимізація", this);
     connect(paretoButton, &QPushButton::clicked, this, &MainWindow::runParetoOptimization);
     mainLayout->addWidget(paretoButton);*/
-
-    /*QPushButton *singleOptionButton = new QPushButton("Вибір єдиного варіанта", this);
-    connect(singleOptionButton, &QPushButton::clicked, this, &MainWindow::selectSingleOption);
-    mainLayout->addWidget(singleOptionButton);*/
 }
 
 QVector<QVector<double>> MainWindow::getMatrixFromTable(
@@ -155,10 +172,8 @@ QVector<QVector<double>> MainWindow::getMatrixFromTable(
     for (int i = 0; i < table->rowCount(); ++i) {
         QVector<double> row;
         for (int j = 0; j < table->columnCount(); ++j) {
-            auto *item = table->item(i, j);
-            bool ok;
-            double val = item ? item->text().toDouble(&ok) : 0.0;
-            row.append(ok ? val : 0.0);
+            QTableWidgetItem *item = table->item(i, j);
+            row.append(item->text().toDouble());
         }
         matrix.append(row);
     }
@@ -168,81 +183,69 @@ QVector<QVector<double>> MainWindow::getMatrixFromTable(
 bool dominates(
     const QVector<double> &a, const QVector<double> &b)
 {
-    bool strictlyBetter = false;
-    for (int i = 0; i < a.size(); i++) {
+    for (int i = 0; i < a.size(); i++)
         if (a[i] > b[i])
             return false;
-        if (a[i] < b[i])
-            strictlyBetter = true;
-    }
-    return strictlyBetter;
+    return true;
 }
 
 void MainWindow::analyzeDominance()
 {
-    QVector<QVector<double>> matrix = getMatrixFromTable(minimizedTable);
+    const QVector<QVector<double>> matrix = getMatrixFromTable(minimizedTable);
 
-    QVector<QPair<int, int>> worsePairs;
-    QSet<int> excluded;
-    for (int i = 0; i < matrix.size(); i++) {
-        if (excluded.contains(i))
-            continue;
-        for (int j = 0; j < matrix.size() - 1; j++) {
-            if (i != j && !excluded.contains(j) && dominates(matrix[i], matrix[j])) {
-                worsePairs.emplace_back(j, i);
-                excluded.insert(j);
+    for (int row = 0; row < minimizedTable->rowCount(); ++row) {
+        for (int col = 0; col < minimizedTable->columnCount(); ++col) {
+            QTableWidgetItem *sourceItem = minimizedTable->item(row, col);
+            if (sourceItem) {
+                QTableWidgetItem *newItem = new QTableWidgetItem(*sourceItem);
+                newItem->setFlags(newItem->flags() & ~Qt::ItemIsEditable); // Заборонити редагування
+                paretoTable->setItem(row, col, newItem);
             }
         }
     }
 
-    QVector<bool> isDominated(matrix.size(), false);
+    QVector<QPair<int, int>> worsePairs;
+    QVector<int> excluded;
     for (int i = 0; i < matrix.size(); i++) {
         if (excluded.contains(i))
             continue;
         for (int j = 0; j < matrix.size(); j++) {
-            if (i != j && !excluded.contains(j) && dominates(matrix[j], matrix[i])) {
-                isDominated[i] = true;
-                break;
+            if (i != j && !excluded.contains(j) && dominates(matrix[i], matrix[j])) {
+                worsePairs.emplace_back(j, i);
+                excluded.push_back(j);
             }
         }
     }
-    QVector<int> paretoIndices;
-    for (int i = 0; i < matrix.size(); i++) {
-        if (!excluded.contains(i) && !isDominated[i])
-            paretoIndices.push_back(i);
-    }
 
-    /*int n = matrix.size();
-    if (n == 0)
-        return;
-    int m = matrix[0].size() - 1;
+    for (int i = 0; i < matrix.size(); ++i) {
+        QTableWidgetItem *item = new QTableWidgetItem;
 
-    for (int i = 0; i < n; ++i) {
-        bool isDominated = false;
-        for (int j = 0; j < n; ++j) {
-            if (i == j)
-                continue;
+        const QColor rowColor = QColor(255, 200, 200);
 
-            bool allLessOrEqual = true;
-            bool atLeastOneLess = false;
-
-            for (int k = 0; k < m; ++k) {
-                if (matrix[j][k] < matrix[i][k])
-                    atLeastOneLess = true;
-                if (matrix[j][k] > matrix[i][k])
-                    allLessOrEqual = false;
+        if (excluded.contains(i)) {
+            int dominator = -1;
+            for (const auto &pair : worsePairs) {
+                if (pair.first == i) {
+                    dominator = pair.second;
+                    break;
+                }
             }
-
-            if (allLessOrEqual && atLeastOneLess) {
-                isDominated = true;
-                break;
-            }
+            item->setText("БГ до " + QString::number(dominator + 1));
+        } else {
+            item->setText("ПО");
         }
 
-        QString status = isDominated ? "БГ до *" : "ПО";
-        QTableWidgetItem *item = new QTableWidgetItem(status);
-        minimizedTable->setItem(i, matrix[0].size() - 1, item);
-    }*/
+        item->setFlags(item->flags() & ~Qt::ItemIsEditable); // Заборонити редагування
+        paretoTable->setItem(i, matrix[0].size(), item);
+
+        int colCount = paretoTable->columnCount();
+        for (int j = 0; j < colCount; ++j) {
+            if (item->text() != "ПО") {
+                QTableWidgetItem *cellItem = paretoTable->item(i, j);
+                cellItem->setBackground(QBrush(rowColor));
+            }
+        }
+    }
 }
 
 QVector<QString> MainWindow::getOptimizationTargets()
@@ -293,46 +296,12 @@ void MainWindow::fillNormalizedTable()
     }
 }
 
-QVector<int> findParetoSet(
-    const QVector<QVector<double>> &matrix)
-{
-    int n = matrix.size();
-    int m = matrix[0].size();
-    QVector<int> pareto;
-
-    for (int i = 0; i < n; ++i) {
-        bool dominated = false;
-        for (int j = 0; j < n; ++j) {
-            if (i == j)
-                continue;
-            bool allBetterOrEqual = true;
-            bool strictlyBetter = false;
-            for (int k = 0; k < m; ++k) {
-                if (matrix[j][k] < matrix[i][k]) {
-                    allBetterOrEqual = false;
-                    break;
-                }
-                if (matrix[j][k] > matrix[i][k])
-                    strictlyBetter = true;
-            }
-            if (allBetterOrEqual && strictlyBetter) {
-                dominated = true;
-                break;
-            }
-        }
-        if (!dominated)
-            pareto.append(i);
-    }
-
-    return pareto;
-}
-
 void MainWindow::fillMinimizedTable()
 {
     QVector<QVector<double>> norm = getMatrixFromTable(normalizedTable);
     QVector<QString> targets = getOptimizationTargets();
 
-    minimizedTable->setColumnCount(norm[0].size() + 1);
+    //minimizedTable->setColumnCount(norm[0].size() + 1);
     QStringList headers;
     for (int j = 0; j < norm[0].size(); ++j)
         headers << QString("Параметр %1").arg(j + 1);
@@ -353,22 +322,6 @@ void MainWindow::fillMinimizedTable()
             minimizedTable->setItem(i, j, item);
         }
     }
-
-    /*// Знайти Парето-оптимальні альтернативи
-    QVector<int> pareto = findParetoSet(norm);
-
-    for (int i = 0; i < norm.size(); ++i) {
-        for (int j = 0; j < norm[i].size(); ++j) {
-            QTableWidgetItem *item = new QTableWidgetItem(QString::number(norm[i][j], 'f', 4));
-            item->setFlags(item->flags() & ~Qt::ItemIsEditable);
-            minimizedTable->setItem(i, j, item);
-        }
-
-        QString status = pareto.contains(i) ? "Парето-оптимальна" : "Безумовно гірша";
-        QTableWidgetItem *statusItem = new QTableWidgetItem(status);
-        statusItem->setFlags(statusItem->flags() & ~Qt::ItemIsEditable);
-        minimizedTable->setItem(i, norm[i].size(), statusItem);
-    }*/
 }
 
 void MainWindow::updateWeightInputs()
@@ -382,11 +335,29 @@ void MainWindow::updateWeightInputs()
         delete child;
     }
 
+    // Регулярний вираз для числа від 0 до 1 з крапкою або комою
+    QRegularExpression regex(R"(^([0]|1|0[.,]\d{0,8}|1[.,]0{0,8})?$)");
+
     int cols = inputTable->columnCount();
     for (int i = 0; i < cols; ++i) {
         QLineEdit *edit = new QLineEdit(this);
         edit->setPlaceholderText(QString("П%1").arg(i + 1));
-        edit->setValidator(new QDoubleValidator(0, 1, 4, edit));
+
+        // Встановлення валідатора
+        auto *validator = new QRegularExpressionValidator(regex, edit);
+        edit->setValidator(validator);
+
+        // Заміна коми на крапку під час введення
+        connect(edit, &QLineEdit::textChanged, edit, [edit]() {
+            QString text = edit->text();
+            if (text.contains(',')) {
+                int pos = edit->cursorPosition();
+                text.replace(',', '.');
+                edit->setText(text);
+                edit->setCursorPosition(pos);
+            }
+        });
+
         weightEdits.append(edit);
         weightsLayout->addWidget(edit);
     }
@@ -460,6 +431,15 @@ void MainWindow::updateTableSize()
     minimizedTable->setColumnCount(numCriteria);
     minimizedTable->setHorizontalHeaderLabels(headers);
 
+    paretoTable->clear();
+    paretoTable->setRowCount(numAlternatives);
+    paretoTable->setColumnCount(numCriteria + 1);
+    headers << "Статус";
+    paretoTable->setHorizontalHeaderLabels(headers);
+
+    valueFunctionTable->clear();
+    valueFunctionTable->setRowCount(numAlternatives);
+
     updateParameterCheckboxes();
     updateWeightInputs();
 
@@ -482,7 +462,7 @@ void MainWindow::updateTableSize()
     }
 }
 
-int chooseBestByWeights(
+/*int chooseBestByWeights(
     const QVector<QVector<double>> &matrix, const QVector<double> &weights)
 {
     int n = matrix.size();
@@ -500,13 +480,13 @@ int chooseBestByWeights(
     }
 
     return bestIndex;
-}
+}*/
 
 QVector<double> MainWindow::getWeights()
 {
     QVector<double> weights;
     for (QLineEdit *edit : weightEdits) {
-        bool ok;
+        bool ok = false;
         double val = edit->text().toDouble(&ok);
         if (!ok) {
             QMessageBox::warning(nullptr, "Помилка", "Введено некоректне значення ваги.");
@@ -519,10 +499,41 @@ QVector<double> MainWindow::getWeights()
 
 void MainWindow::selectSingleOption()
 {
-    if (!validateTableData())
+    QVector<QVector<double>> matrix = getMatrixFromTable(minimizedTable);
+    QVector<double> weights = getWeights();
+
+    if (weights.empty()) {
+        QMessageBox::warning(nullptr, "Помилка", "Пусте значення ваги.");
+        return;
+    } else
+        for (int row = 0; row < matrix.size(); ++row) {
+            double value = 0.0;
+            QString status = paretoTable->item(row, paretoTable->columnCount() - 1)->text();
+            if (status == "ПО") {
+                for (int col = 0; col < matrix[0].size(); ++col) {
+                    double criterion = matrix[row][col];
+                    double weight = weights[col];
+                    value += criterion * weight;
+                }
+
+                QTableWidgetItem *item = new QTableWidgetItem(QString::number(value, 'f', 3));
+                item->setFlags(item->flags() & ~Qt::ItemIsEditable); // Заборонити редагування
+                valueFunctionTable->setItem(row, 1, item);
+            } else {
+                const QColor rowColor = QColor(255, 200, 200);
+                //valueFunctionTable->setItem(row, 1, new QTableWidgetItem(""));
+                int colCount = valueFunctionTable->columnCount();
+                for (int j = 0; j < colCount; ++j) {
+                    QTableWidgetItem *cellItem = valueFunctionTable->item(row, j);
+                    cellItem->setBackground(QBrush(rowColor));
+                }
+            }
+        }
+
+    /*if (!validateTableData())
         return;
 
-    QVector<QVector<double>> matrix = getMatrixFromTable(inputTable);
+    QVector<QVector<double>> matrix = getMatrixFromTable(normalizedTable);
     QVector<QVector<double>> norm = normalizeMatrix(matrix);
 
     QVector<double> weights = getWeights();
@@ -532,47 +543,7 @@ void MainWindow::selectSingleOption()
     int best = chooseBestByWeights(norm, weights);
     QMessageBox::information(this,
                              "Вибір варіанта",
-                             QString("Найкраща альтернатива: %1").arg(best + 1));
-}
-
-void MainWindow::runParetoOptimization()
-{
-    if (!validateTableData())
-        return;
-
-    QVector<QVector<double>> matrix = getMatrixFromTable(inputTable);
-    QVector<QVector<double>> norm = normalizeMatrix(matrix);
-    QVector<int> pareto = findParetoSet(norm);
-
-    QString result = "Парето-оптимальні альтернативи:\n";
-    for (int i : pareto) {
-        result += QString("Альтернатива %1\n").arg(i + 1);
-    }
-    QMessageBox::information(this, "Парето-оптимізація", result);
-}
-
-void MainWindow::plotGraph()
-{
-    if (!validateTableData())
-        return;
-
-    int checkedCount = 0;
-
-    QString selectedParams;
-    for (int i = 0; i < parameterChecks.size(); ++i) {
-        if (parameterChecks[i]->isChecked()) {
-            ++checkedCount;
-            selectedParams += QString("Параметр %1 ").arg(i + 1);
-        }
-    }
-
-    if (checkedCount != 2) {
-        QMessageBox::warning(this, "Увага", "Потрібно обрати рівно два параметри!");
-        return;
-    }
-
-    QMessageBox::
-        information(this, "Графік", QString("Будується графік для: %1").arg(selectedParams));
+                             QString("Найкраща альтернатива: %1").arg(best + 1));*/
 }
 
 void MainWindow::loadMatrixFromFile()
