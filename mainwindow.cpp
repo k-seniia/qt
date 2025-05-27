@@ -3,7 +3,9 @@
 #include <QComboBox>
 #include <QFile>
 #include <QFileDialog>
+#include <QGraphicsTextItem>
 #include <QHBoxLayout>
+#include <QHeaderView>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMessageBox>
@@ -58,9 +60,12 @@ MainWindow::MainWindow(
         combo->addItem("min");
         combo->addItem("max");
         combo->setCurrentText("min");
+        //combo->setFixedWidth(95);
         optimizationCombos.append(combo);
         optimizationLayout->addWidget(combo);
     }
+    //optimizationLayout->setAlignment(Qt::AlignLeft);
+    //optimizationLayout->setContentsMargins(20, 0, 0, 0);
     mainLayout->addLayout(optimizationLayout);
     //
 
@@ -94,6 +99,21 @@ MainWindow::MainWindow(
     headers << "Розрахунок";
     headers << "Ф. цінності";
     valueFunctionTable->setHorizontalHeaderLabels(headers);
+
+    QWidget *tab = new QWidget(this);
+
+    graphSummaryTable = new QTableWidget(this);
+    graphSummaryTable->setColumnCount(3);
+    graphSummaryTable->setHorizontalHeaderLabels({"Параметр X", "Параметр Y", "Статус"});
+    //graphSummaryTable->horizontalHeader()->setStretchLastSection(true);
+
+    graphScene = new QGraphicsScene(tab);
+    graphView = new QGraphicsView(graphScene, tab);
+    graphView->setMinimumHeight(300); // Висота графіка
+
+    QHBoxLayout *graphLayout = new QHBoxLayout(tab);
+    graphLayout->addWidget(graphSummaryTable);
+    graphLayout->addWidget(graphView);
     //
 
     auto *doubleDelegate = new DoubleItemDelegate(this);
@@ -107,6 +127,7 @@ MainWindow::MainWindow(
     tabWidget->addTab(minimizedTable, "Зведення до мінімізації");
     tabWidget->addTab(paretoTable, "Парето оптимізація");
     tabWidget->addTab(valueFunctionTable, "Вибір єдиного варіанта");
+    tabWidget->addTab(tab, "Графік");
 
     mainLayout->addWidget(tabWidget);
     //
@@ -136,8 +157,6 @@ MainWindow::MainWindow(
             return;
         fillNormalizedTable();
     });
-    mainLayout->addWidget(fillNormButton);
-    //fillNormButton->setEnabled(false);
 
     fillMinButton = new QPushButton("Мінімізація значень", this);
     connect(fillMinButton, &QPushButton::clicked, this, [this]() {
@@ -145,22 +164,137 @@ MainWindow::MainWindow(
             return;
         fillMinimizedTable();
     });
-    mainLayout->addWidget(fillMinButton);
     fillMinButton->setEnabled(false);
 
     analyzeDominanceButton = new QPushButton("Аналіз домінування", this);
-    mainLayout->addWidget(analyzeDominanceButton);
     connect(analyzeDominanceButton, &QPushButton::clicked, this, &MainWindow::analyzeDominance);
     analyzeDominanceButton->setEnabled(false);
 
     singleOptionButton = new QPushButton("Вибір єдиного варіанта", this);
     connect(singleOptionButton, &QPushButton::clicked, this, &MainWindow::selectSingleOption);
-    mainLayout->addWidget(singleOptionButton);
     singleOptionButton->setEnabled(false);
 
-    /*QPushButton *plotButton = new QPushButton("Побудувати графік", this);
+    QPushButton *plotButton = new QPushButton("Побудувати графік", this);
     connect(plotButton, &QPushButton::clicked, this, &MainWindow::plotGraph);
-    mainLayout->addWidget(plotButton);*/
+    //plotButton->setEnabled(false);
+    //int index = tabWidget->indexOf(valueFunctionTable);
+    //tabWidget->setCurrentIndex(index);
+
+    QHBoxLayout *buttonLayout = new QHBoxLayout();
+    buttonLayout->addWidget(fillNormButton);
+    buttonLayout->addWidget(fillMinButton);
+    buttonLayout->addWidget(analyzeDominanceButton);
+    buttonLayout->addWidget(singleOptionButton);
+    buttonLayout->addWidget(plotButton);
+    mainLayout->addLayout(buttonLayout);
+}
+
+void MainWindow::plotGraph()
+{
+    graphScene->clear();
+    graphSummaryTable->clearContents();
+    graphSummaryTable->setRowCount(0);
+
+    QVector<int> selectedColumns;
+    for (int i = 0; i < parameterChecks.size(); ++i) {
+        if (parameterChecks[i]->isChecked())
+            selectedColumns.append(i);
+    }
+
+    if (selectedColumns.size() != 2) {
+        QMessageBox::warning(this, "Помилка", "Оберіть рівно 2 параметри для побудови графіка.");
+        return;
+    }
+
+    int xCol = selectedColumns[0];
+    int yCol = selectedColumns[1];
+
+    QVector<QPointF> points;
+    QVector<int> rowIndices;
+    int rows = minimizedTable->rowCount();
+    for (int i = 0; i < rows; ++i) {
+        bool ok1, ok2;
+        double x = minimizedTable->item(i, xCol)->text().toDouble(&ok1);
+        double y = minimizedTable->item(i, yCol)->text().toDouble(&ok2);
+        if (ok1 && ok2) {
+            points.append(QPointF(x, y));
+            rowIndices.append(i);
+        }
+    }
+
+    if (points.isEmpty())
+        return;
+
+    // Аналіз домінування
+    QVector<bool> isPareto(points.size(), true);
+    QVector<QString> dominanceInfo(points.size(), "ПО");
+
+    for (int i = 0; i < points.size(); ++i) {
+        for (int j = 0; j < points.size(); ++j) {
+            if (i == j)
+                continue;
+            if ((points[j].x() <= points[i].x() && points[j].y() <= points[i].y())
+                && (points[j].x() < points[i].x() || points[j].y() < points[i].y())) {
+                isPareto[i] = false;
+                dominanceInfo[i] = "БГ до " + QString::number(rowIndices[j] + 1);
+                break;
+            }
+        }
+    }
+
+    // Налаштування сцени
+    const int margin = 40;
+    const int width = 400;
+    const int height = 400;
+    QRectF sceneRect(0, 0, width + margin * 2, height + margin * 2);
+    graphScene->setSceneRect(sceneRect);
+
+    QPen axisPen(Qt::black, 2);
+    graphScene->addLine(margin, height + margin, width + margin, height + margin, axisPen); // X
+    graphScene->addLine(margin, margin, margin, height + margin, axisPen);                  // Y
+
+    for (int i = 0; i <= 5; ++i) {
+        double value = i * 0.2;
+        int x = margin + value * width;
+        int y = margin + height - value * height;
+
+        graphScene->addLine(x, height + margin - 5, x, height + margin + 5, axisPen);
+        graphScene->addText(QString::number(value, 'f', 1))->setPos(x - 10, height + margin + 5);
+
+        graphScene->addLine(margin - 5, y, margin + 5, y, axisPen);
+        graphScene->addText(QString::number(value, 'f', 1))->setPos(margin - 30, y - 10);
+    }
+
+    graphScene->addText("X")->setPos(width + margin + 10, height + margin - 10);
+    graphScene->addText("Y")->setPos(margin - 20, margin - 30);
+
+    // Побудова точок і таблички
+    graphSummaryTable->setRowCount(points.size());
+    graphSummaryTable->setColumnCount(3);
+    graphSummaryTable->setHorizontalHeaderLabels({"X", "Y", "Статус"});
+
+    for (int i = 0; i < points.size(); ++i) {
+        const QPointF &p = points[i];
+        double sceneX = margin + p.x() * width;
+        double sceneY = margin + (1.0 - p.y()) * height;
+
+        QColor color = isPareto[i] ? Qt::blue : Qt::red;
+        graphScene->addEllipse(sceneX - 3, sceneY - 3, 6, 6, QPen(color), QBrush(color));
+
+        // Додати номер рядка біля точки
+        QGraphicsTextItem *label = graphScene->addText(QString::number(rowIndices[i] + 1));
+        label->setPos(sceneX + 5, sceneY - 10);
+
+        // Додати до таблички
+        graphSummaryTable->setItem(i, 0, new QTableWidgetItem(QString::number(p.x(), 'f', 3)));
+        graphSummaryTable->setItem(i, 1, new QTableWidgetItem(QString::number(p.y(), 'f', 3)));
+        graphSummaryTable->setItem(i, 2, new QTableWidgetItem(dominanceInfo[i]));
+
+        if (!isPareto[i]) {
+            for (int j = 0; j < 3; ++j)
+                graphSummaryTable->item(i, j)->setBackground(QColor(255, 200, 200));
+        }
+    }
 }
 
 void MainWindow::updateButtonsState()
@@ -487,8 +621,6 @@ void MainWindow::updateWeightInputs()
     weightErrorLabel->setStyleSheet("color: red;");
     weightErrorLabel->setText(""); // спочатку порожній
     weightsLayout->addWidget(weightErrorLabel);
-
-    //updateButtonsState();
 }
 
 bool MainWindow::validateTableData()
@@ -567,6 +699,10 @@ void MainWindow::updateTableSize()
 
     valueFunctionTable->clear();
     valueFunctionTable->setRowCount(numAlternatives);
+
+    graphSummaryTable->clear();
+    graphSummaryTable->setRowCount(numAlternatives);
+    graphSummaryTable->setHorizontalHeaderLabels({"Параметр X", "Параметр Y", "Статус"});
 
     updateParameterCheckboxes();
     updateWeightInputs();
@@ -709,6 +845,4 @@ void MainWindow::loadMatrixFromFile()
         }
         ++row;
     }
-
-    //updateButtonsState();
 }

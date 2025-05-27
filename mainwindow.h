@@ -1,3 +1,4 @@
+#include <QGraphicsView>
 #include <QMainWindow>
 #include <QVector>
 
@@ -18,7 +19,7 @@ public:
     MainWindow(QWidget *parent = nullptr);
 
 private slots:
-    //void plotGraph();
+    void plotGraph();
     void loadMatrixFromFile();
     void selectSingleOption();
     void fillNormalizedTable();
@@ -35,6 +36,8 @@ private slots:
 private:
     int numAlternatives = 0;
     int numCriteria = 0;
+    QGraphicsView *graphView;
+    QGraphicsScene *graphScene;
     QHBoxLayout *checksLayout;
     QHBoxLayout *weightsLayout;
     QHBoxLayout *optimizationLayout;
@@ -51,6 +54,7 @@ private:
     QTableWidget *minimizedTable;
     QTableWidget *paretoTable;
     QTableWidget *valueFunctionTable;
+    QTableWidget *graphSummaryTable;
     QPushButton *fillNormButton = nullptr;
     QPushButton *fillMinButton = nullptr;
     QPushButton *analyzeDominanceButton = nullptr;
