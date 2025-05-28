@@ -32,10 +32,15 @@ private slots:
     void updateTableSize();
     void updateParameterCheckboxes();
     void updateWeightInputs();
+    void drawGraphAxes(QGraphicsScene *scene);
+    void onParameterCheckChanged(int);
 
 private:
     int numAlternatives = 0;
     int numCriteria = 0;
+    const int margin = 35;
+    const int width = 350;
+    const int height = 350;
     QGraphicsView *graphView;
     QGraphicsScene *graphScene;
     QHBoxLayout *checksLayout;
@@ -59,6 +64,8 @@ private:
     QPushButton *fillMinButton = nullptr;
     QPushButton *analyzeDominanceButton = nullptr;
     QPushButton *singleOptionButton = nullptr;
+    QPushButton *plotButton = nullptr;
+    QWidget *tab = nullptr;
 
     QVector<double> getWeights() const;
     QVector<QString> getOptimizationTargets() const;

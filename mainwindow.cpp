@@ -31,13 +31,13 @@ MainWindow::MainWindow(
     QHBoxLayout *sizeLayout = new QHBoxLayout();
     sizeLayout->addWidget(new QLabel("Альтернативи:", this));
     altSpin = new QSpinBox(this);
-    altSpin->setRange(1, 100);
+    altSpin->setRange(2, 100);
     altSpin->setValue(5);
     sizeLayout->addWidget(altSpin);
 
     sizeLayout->addWidget(new QLabel("Критерії:", this));
     critSpin = new QSpinBox(this);
-    critSpin->setRange(1, 10);
+    critSpin->setRange(2, 10);
     critSpin->setValue(5);
     sizeLayout->addWidget(critSpin);
 
@@ -100,12 +100,10 @@ MainWindow::MainWindow(
     headers << "Ф. цінності";
     valueFunctionTable->setHorizontalHeaderLabels(headers);
 
-    QWidget *tab = new QWidget(this);
+    tab = new QWidget(this);
 
-    graphSummaryTable = new QTableWidget(this);
-    graphSummaryTable->setColumnCount(3);
+    graphSummaryTable = new QTableWidget(numAlternatives, 3, this);
     graphSummaryTable->setHorizontalHeaderLabels({"Параметр X", "Параметр Y", "Статус"});
-    //graphSummaryTable->horizontalHeader()->setStretchLastSection(true);
 
     graphScene = new QGraphicsScene(tab);
     graphView = new QGraphicsView(graphScene, tab);
@@ -114,6 +112,7 @@ MainWindow::MainWindow(
     QHBoxLayout *graphLayout = new QHBoxLayout(tab);
     graphLayout->addWidget(graphSummaryTable);
     graphLayout->addWidget(graphView);
+    drawGraphAxes(graphScene);
     //
 
     auto *doubleDelegate = new DoubleItemDelegate(this);
@@ -134,8 +133,12 @@ MainWindow::MainWindow(
     //
 
     //
+    QHBoxLayout *weightLableLayout = new QHBoxLayout();
     QLabel *weightLabel = new QLabel("Введіть ваги для кожного параметра:", this);
-    mainLayout->addWidget(weightLabel);
+    weightLableLayout->addWidget(weightLabel);
+    weightErrorLabel = new QLabel("", this);
+    weightLableLayout->addWidget(weightErrorLabel);
+    mainLayout->addLayout(weightLableLayout);
 
     weightsLayout = new QHBoxLayout();
     mainLayout->addLayout(weightsLayout);
@@ -174,11 +177,9 @@ MainWindow::MainWindow(
     connect(singleOptionButton, &QPushButton::clicked, this, &MainWindow::selectSingleOption);
     singleOptionButton->setEnabled(false);
 
-    QPushButton *plotButton = new QPushButton("Побудувати графік", this);
+    plotButton = new QPushButton("Побудувати графік", this);
     connect(plotButton, &QPushButton::clicked, this, &MainWindow::plotGraph);
-    //plotButton->setEnabled(false);
-    //int index = tabWidget->indexOf(valueFunctionTable);
-    //tabWidget->setCurrentIndex(index);
+    plotButton->setEnabled(false);
 
     QHBoxLayout *buttonLayout = new QHBoxLayout();
     buttonLayout->addWidget(fillNormButton);
@@ -242,31 +243,7 @@ void MainWindow::plotGraph()
         }
     }
 
-    // Налаштування сцени
-    const int margin = 40;
-    const int width = 400;
-    const int height = 400;
-    QRectF sceneRect(0, 0, width + margin * 2, height + margin * 2);
-    graphScene->setSceneRect(sceneRect);
-
-    QPen axisPen(Qt::black, 2);
-    graphScene->addLine(margin, height + margin, width + margin, height + margin, axisPen); // X
-    graphScene->addLine(margin, margin, margin, height + margin, axisPen);                  // Y
-
-    for (int i = 0; i <= 5; ++i) {
-        double value = i * 0.2;
-        int x = margin + value * width;
-        int y = margin + height - value * height;
-
-        graphScene->addLine(x, height + margin - 5, x, height + margin + 5, axisPen);
-        graphScene->addText(QString::number(value, 'f', 1))->setPos(x - 10, height + margin + 5);
-
-        graphScene->addLine(margin - 5, y, margin + 5, y, axisPen);
-        graphScene->addText(QString::number(value, 'f', 1))->setPos(margin - 30, y - 10);
-    }
-
-    graphScene->addText("X")->setPos(width + margin + 10, height + margin - 10);
-    graphScene->addText("Y")->setPos(margin - 20, margin - 30);
+    drawGraphAxes(graphScene);
 
     // Побудова точок і таблички
     graphSummaryTable->setRowCount(points.size());
@@ -295,14 +272,61 @@ void MainWindow::plotGraph()
                 graphSummaryTable->item(i, j)->setBackground(QColor(255, 200, 200));
         }
     }
+
+    int index = tabWidget->indexOf(tab);
+    tabWidget->setCurrentIndex(index);
+}
+
+void MainWindow::drawGraphAxes(
+    QGraphicsScene *scene)
+{
+    QRectF sceneRect(0, 0, width + margin * 2, height + margin * 2);
+    scene->setSceneRect(sceneRect);
+
+    // Сітка: бліда кожні 0.05, пунктирна кожні 0.1
+    QPen lightPen(QColor(200, 200, 200), 1, Qt::SolidLine);
+    QPen dashPen(QColor(150, 150, 150), 1, Qt::DashLine);
+
+    for (double v = 0.05; v <= 1.0; v += 0.05) {
+        int x = margin + v * width;
+        int y = margin + (1.0 - v) * height;
+
+        QPen pen = (fmod(v * 10, 2) == 0) ? dashPen : lightPen;
+
+        scene->addLine(x, margin, x, height + margin, pen); // вертикальна
+        scene->addLine(margin, y, width + margin, y, pen);  // горизонтальна
+    }
+
+    // Ося X і Y
+    QPen axisPen(Qt::black, 2);
+    scene->addLine(margin, height + margin, width + margin, height + margin,
+                   axisPen);                                          // X
+    scene->addLine(margin, margin, margin, height + margin, axisPen); // Y
+
+    // Поділки і підписи
+    for (int i = 0; i <= 5; ++i) {
+        double value = i * 0.2;
+        int x = margin + value * width;
+        int y = margin + height - value * height;
+
+        scene->addLine(x, height + margin - 5, x, height + margin + 5, axisPen);
+        scene->addText(QString::number(value, 'f', 1))->setPos(x - 10, height + margin + 5);
+
+        scene->addLine(margin - 5, y, margin + 5, y, axisPen);
+        scene->addText(QString::number(value, 'f', 1))->setPos(margin - 30, y - 10);
+    }
+
+    scene->addText("X")->setPos(width + margin + 10, height + margin - 10);
+    scene->addText("Y")->setPos(margin - 20, margin - 30);
 }
 
 void MainWindow::updateButtonsState()
 {
-    // 2. Для мінімізації — normalizedTable має бути заповнена
-    bool normReady = true;
-    if (normalizedTable) {
-        for (int i = 0; i < normalizedTable->rowCount(); ++i) {
+    // --- 1. Перевірка normalizedTable для кнопки мінімізації ---
+    bool normReady = normalizedTable && normalizedTable->rowCount() > 0
+                     && normalizedTable->columnCount() > 0;
+    if (normReady) {
+        for (int i = 0; i < normalizedTable->rowCount() && normReady; ++i) {
             for (int j = 0; j < normalizedTable->columnCount(); ++j) {
                 QTableWidgetItem *item = normalizedTable->item(i, j);
                 if (!item || item->text().isEmpty()) {
@@ -315,10 +339,11 @@ void MainWindow::updateButtonsState()
     if (fillMinButton)
         fillMinButton->setEnabled(normReady);
 
-    // 3. Для аналізу домінування — minimizedTable має бути заповнена
-    bool minReady = true;
-    if (minimizedTable) {
-        for (int i = 0; i < minimizedTable->rowCount(); ++i) {
+    // --- 2. Перевірка minimizedTable для аналізу домінування ---
+    bool minReady = minimizedTable && minimizedTable->rowCount() > 0
+                    && minimizedTable->columnCount() > 0;
+    if (minReady) {
+        for (int i = 0; i < minimizedTable->rowCount() && minReady; ++i) {
             for (int j = 0; j < minimizedTable->columnCount(); ++j) {
                 QTableWidgetItem *item = minimizedTable->item(i, j);
                 if (!item || item->text().isEmpty()) {
@@ -331,7 +356,7 @@ void MainWindow::updateButtonsState()
     if (analyzeDominanceButton)
         analyzeDominanceButton->setEnabled(minReady);
 
-    // 4. Для вибору єдиного варіанта — вага + minimizedTable + paretoTable
+    // --- 3. Перевірка ваг (weightsValid) ---
     bool weightsValid = true;
     double weightSum = 0.0;
     for (QLineEdit *edit : weightEdits) {
@@ -348,10 +373,34 @@ void MainWindow::updateButtonsState()
     if (std::abs(weightSum - 1.0) > epsilon)
         weightsValid = false;
 
-    bool paretoReady = paretoTable && paretoTable->rowCount() > 0;
+    // --- 4. Перевірка, що paretoTable готова ---
+    bool paretoReady = paretoTable && paretoTable->rowCount() > 0 && paretoTable->columnCount() > 0;
+    if (paretoReady) {
+        for (int i = 0; i < paretoTable->rowCount() && paretoReady; ++i) {
+            for (int j = 0; j < paretoTable->columnCount(); ++j) {
+                QTableWidgetItem *item = paretoTable->item(i, j);
+                if (!item || item->text().isEmpty()) {
+                    paretoReady = false;
+                    break;
+                }
+            }
+        }
+    }
 
     if (singleOptionButton)
-        singleOptionButton->setEnabled(minReady && paretoReady && weightsValid);
+        singleOptionButton->setEnabled((paretoReady && weightsValid));
+
+    // --- 5. Перевірка, чи можна активувати кнопку графіка ---
+    int selectedCount = 0;
+    for (QCheckBox *check : parameterChecks) {
+        if (check->isChecked())
+            ++selectedCount;
+    }
+
+    bool plotReady = minReady && (selectedCount == 2);
+
+    if (plotButton)
+        plotButton->setEnabled(plotReady);
 }
 
 QVector<QVector<double>> MainWindow::getMatrixFromTable(
@@ -571,10 +620,6 @@ void MainWindow::validateWeightSum()
             weightErrorLabel->setText("");
         }
     }
-
-    if (singleOptionButton) {
-        singleOptionButton->setEnabled(!showError);
-    }
 }
 
 void MainWindow::updateWeightInputs()
@@ -617,10 +662,9 @@ void MainWindow::updateWeightInputs()
         weightsLayout->addWidget(edit);
     }
 
-    weightErrorLabel = new QLabel(this);
     weightErrorLabel->setStyleSheet("color: red;");
-    weightErrorLabel->setText(""); // спочатку порожній
-    weightsLayout->addWidget(weightErrorLabel);
+
+    updateButtonsState();
 }
 
 bool MainWindow::validateTableData()
@@ -663,7 +707,30 @@ void MainWindow::updateParameterCheckboxes()
     for (int i = 0; i < numCriteria; ++i) {
         QCheckBox *check = new QCheckBox(QString::number(i + 1), this);
         parameterChecks.append(check);
+        connect(check, &QCheckBox::stateChanged, this, &MainWindow::onParameterCheckChanged);
         checksLayout->addWidget(check);
+    }
+
+    /*for (QCheckBox *check : parameterChecks) {
+        connect(check, &QCheckBox::stateChanged, this,
+    &MainWindow::onParameterCheckChanged);
+    }*/
+}
+
+void MainWindow::onParameterCheckChanged(
+    int)
+{
+    // Рахуємо кількість обраних
+    int selectedCount = 0;
+    for (QCheckBox *check : parameterChecks) {
+        if (check->isChecked())
+            ++selectedCount;
+    }
+
+    // Якщо обрано вже 2 — блокуємо інші (ті, що не обрані)
+    for (QCheckBox *check : parameterChecks) {
+        if (!check->isChecked())
+            check->setEnabled(selectedCount < 2);
     }
 }
 
