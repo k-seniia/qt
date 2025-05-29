@@ -28,31 +28,48 @@ MainWindow::MainWindow(
 
     //
     //
-    QHBoxLayout *sizeLayout = new QHBoxLayout();
-    sizeLayout->addWidget(new QLabel("Альтернативи:", this));
+    QHBoxLayout *inputLayout = new QHBoxLayout();
+
+    QWidget *sizeContainer = new QWidget(this);
+    QHBoxLayout *sizeLayout = new QHBoxLayout(sizeContainer);
+    sizeLayout->setContentsMargins(0, 0, 10, 0);
+
+    sizeLayout->addWidget(new QLabel("Альтернативи:", this), 1);
     altSpin = new QSpinBox(this);
     altSpin->setRange(2, 100);
     altSpin->setValue(5);
-    sizeLayout->addWidget(altSpin);
+    sizeLayout->addWidget(altSpin, 1);
 
-    sizeLayout->addWidget(new QLabel("Критерії:", this));
+    sizeLayout->addWidget(new QLabel("Параметри:", this), 1);
     critSpin = new QSpinBox(this);
     critSpin->setRange(2, 10);
     critSpin->setValue(5);
-    sizeLayout->addWidget(critSpin);
+    sizeLayout->addWidget(critSpin, 1);
 
     QPushButton *resizeButton = new QPushButton("Оновити таблицю", this);
     connect(resizeButton, &QPushButton::clicked, this, &MainWindow::updateTableSize);
-    sizeLayout->addWidget(resizeButton);
+    sizeLayout->addWidget(resizeButton, 2);
 
-    mainLayout->addLayout(sizeLayout);
+    QWidget *fileContainer = new QWidget(this);
+    QHBoxLayout *fileLayout = new QHBoxLayout(fileContainer);
+    fileLayout->setContentsMargins(10, 0, 0, 0);
+
+    filePathEdit = new QLineEdit(this);
+    QPushButton *loadButton = new QPushButton("Завантажити таблицю", this);
+    connect(loadButton, &QPushButton::clicked, this, &MainWindow::loadMatrixFromFile);
+    fileLayout->addWidget(filePathEdit, 3);
+    fileLayout->addWidget(loadButton, 2);
+
+    inputLayout->addWidget(sizeContainer, 5);
+    inputLayout->addWidget(fileContainer, 4);
+    mainLayout->addLayout(inputLayout);
 
     numAlternatives = altSpin->value();
     numCriteria = critSpin->value();
     //
 
     //
-    QLabel *optLabel = new QLabel("Оптимізація критеріїв:");
+    QLabel *optLabel = new QLabel("Визначення критеріїв:");
     optimizationLayout = new QHBoxLayout();
     mainLayout->addWidget(optLabel);
     for (int i = 0; i < 5; ++i) {
@@ -60,17 +77,35 @@ MainWindow::MainWindow(
         combo->addItem("min");
         combo->addItem("max");
         combo->setCurrentText("min");
-        //combo->setFixedWidth(95);
+        combo->setFixedWidth(partWidth);
         optimizationCombos.append(combo);
         optimizationLayout->addWidget(combo);
     }
-    //optimizationLayout->setAlignment(Qt::AlignLeft);
-    //optimizationLayout->setContentsMargins(20, 0, 0, 0);
+    optimizationLayout->setAlignment(Qt::AlignLeft);
+    optimizationLayout->setContentsMargins(20, 0, 0, 0);
     mainLayout->addLayout(optimizationLayout);
     //
 
     //
+    QHBoxLayout *weightLableLayout = new QHBoxLayout();
+    QLabel *weightLabel
+        = new QLabel("Введіть коефіціїєнти важливості для кожного показника якості:", this);
+    weightLableLayout->addWidget(weightLabel);
+    weightErrorLabel = new QLabel("", this);
+    weightLableLayout->addWidget(weightErrorLabel);
+    mainLayout->addLayout(weightLableLayout);
+
+    weightsLayout = new QHBoxLayout();
+    weightsLayout->setAlignment(Qt::AlignLeft);
+    weightsLayout->setContentsMargins(20, 0, 0, 0);
+    mainLayout->addLayout(weightsLayout);
+    updateWeightInputs();
+    //
+
+    //
     checksLayout = new QHBoxLayout();
+    checksLayout->setAlignment(Qt::AlignLeft);
+    checksLayout->setContentsMargins(55, 0, 0, 0);
     mainLayout->addLayout(checksLayout);
     updateParameterCheckboxes();
     //
@@ -122,37 +157,15 @@ MainWindow::MainWindow(
     tabWidget = new QTabWidget(this);
 
     tabWidget->addTab(inputTable, "Введення даних");
-    tabWidget->addTab(normalizedTable, "Нормалізована матриця");
+    tabWidget->addTab(normalizedTable, "Нормалізовані значення");
     tabWidget->addTab(minimizedTable, "Зведення до мінімізації");
-    tabWidget->addTab(paretoTable, "Парето оптимізація");
+    tabWidget->addTab(paretoTable, "Парето-оптимізація");
     tabWidget->addTab(valueFunctionTable, "Вибір єдиного варіанта");
-    tabWidget->addTab(tab, "Графік");
+    tabWidget->addTab(tab, "БДО");
 
     mainLayout->addWidget(tabWidget);
     //
     //
-
-    //
-    QHBoxLayout *weightLableLayout = new QHBoxLayout();
-    QLabel *weightLabel = new QLabel("Введіть ваги для кожного параметра:", this);
-    weightLableLayout->addWidget(weightLabel);
-    weightErrorLabel = new QLabel("", this);
-    weightLableLayout->addWidget(weightErrorLabel);
-    mainLayout->addLayout(weightLableLayout);
-
-    weightsLayout = new QHBoxLayout();
-    mainLayout->addLayout(weightsLayout);
-    updateWeightInputs();
-    //
-
-    QHBoxLayout *fileLayout = new QHBoxLayout();
-    filePathEdit = new QLineEdit(this);
-
-    QPushButton *loadButton = new QPushButton("Завантажити матрицю", this);
-    connect(loadButton, &QPushButton::clicked, this, &MainWindow::loadMatrixFromFile);
-    fileLayout->addWidget(filePathEdit);
-    fileLayout->addWidget(loadButton);
-    mainLayout->addLayout(fileLayout);
 
     fillNormButton = new QPushButton("Нормалізація значень", this);
     connect(fillNormButton, &QPushButton::clicked, this, [this]() {
@@ -169,7 +182,7 @@ MainWindow::MainWindow(
     });
     fillMinButton->setEnabled(false);
 
-    analyzeDominanceButton = new QPushButton("Аналіз домінування", this);
+    analyzeDominanceButton = new QPushButton("Парето-оптимізація", this);
     connect(analyzeDominanceButton, &QPushButton::clicked, this, &MainWindow::analyzeDominance);
     analyzeDominanceButton->setEnabled(false);
 
@@ -177,7 +190,7 @@ MainWindow::MainWindow(
     connect(singleOptionButton, &QPushButton::clicked, this, &MainWindow::selectSingleOption);
     singleOptionButton->setEnabled(false);
 
-    plotButton = new QPushButton("Побудувати графік", this);
+    plotButton = new QPushButton("Побудувати БДО", this);
     connect(plotButton, &QPushButton::clicked, this, &MainWindow::plotGraph);
     plotButton->setEnabled(false);
 
@@ -188,6 +201,8 @@ MainWindow::MainWindow(
     buttonLayout->addWidget(singleOptionButton);
     buttonLayout->addWidget(plotButton);
     mainLayout->addLayout(buttonLayout);
+
+    initConnections();
 }
 
 void MainWindow::plotGraph()
@@ -203,7 +218,7 @@ void MainWindow::plotGraph()
     }
 
     if (selectedColumns.size() != 2) {
-        QMessageBox::warning(this, "Помилка", "Оберіть рівно 2 параметри для побудови графіка.");
+        QMessageBox::warning(this, "Помилка", "Оберіть рівно 2 параметри для побудови БДО.");
         return;
     }
 
@@ -359,7 +374,13 @@ void MainWindow::updateButtonsState()
     // --- 3. Перевірка ваг (weightsValid) ---
     bool weightsValid = true;
     double weightSum = 0.0;
+    bool anyWeightUsed = false;
+
     for (QLineEdit *edit : weightEdits) {
+        if (!edit->isEnabled())
+            continue; // ігноруємо неактивні поля
+
+        anyWeightUsed = true;
         bool ok;
         double val = edit->text().replace(",", ".").toDouble(&ok);
         if (!ok || edit->text().isEmpty()) {
@@ -370,7 +391,7 @@ void MainWindow::updateButtonsState()
     }
 
     const double epsilon = 0.0001;
-    if (std::abs(weightSum - 1.0) > epsilon)
+    if (!anyWeightUsed || std::abs(weightSum - 1.0) > epsilon)
         weightsValid = false;
 
     // --- 4. Перевірка, що paretoTable готова ---
@@ -401,6 +422,11 @@ void MainWindow::updateButtonsState()
 
     if (plotButton)
         plotButton->setEnabled(plotReady);
+
+    /*bool allReady = weightsValid && (selectedCount == 2);
+
+    if (runAllButton)
+        runAllButton->setEnabled(allReady);*/
 }
 
 QVector<QVector<double>> MainWindow::getMatrixFromTable(
@@ -418,27 +444,93 @@ QVector<QVector<double>> MainWindow::getMatrixFromTable(
     return matrix;
 }
 
-bool dominates(
-    const QVector<double> &a, const QVector<double> &b)
+void MainWindow::updateWeightsState()
 {
-    for (int i = 0; i < a.size(); i++)
-        if (a[i] > b[i])
-            return false;
-    return true;
+    // Підрахунок обраних параметрів
+    QVector<int> selectedIndexes;
+    for (int i = 0; i < parameterChecks.size(); ++i) {
+        if (parameterChecks[i]->isChecked()) {
+            selectedIndexes.append(i);
+        }
+    }
+
+    // Якщо нічого не вибрано — активуємо всі поля
+    bool enableAll = selectedIndexes.isEmpty();
+
+    for (int i = 0; i < weightEdits.size(); ++i) {
+        if (enableAll || selectedIndexes.contains(i)) {
+            weightEdits[i]->setEnabled(true);
+        } else {
+            weightEdits[i]->setEnabled(false);
+        }
+    }
+}
+
+void MainWindow::initConnections()
+{
+    // 1. Чекбокси параметрів
+    for (QCheckBox *check : parameterChecks) {
+        if (check) {
+            connect(check, &QCheckBox::stateChanged, this, [this]() {
+                updateWeightsState();
+                updateButtonsState(); // Якщо також потрібно оновити стан кнопок
+            });
+        }
+    }
+
+    // 2. Вагові коефіцієнти
+    for (QLineEdit *edit : weightEdits) {
+        if (edit) {
+            connect(edit, &QLineEdit::textChanged, this, &MainWindow::updateButtonsState);
+        }
+    }
+
+    // 3. Таблиці
+    if (normalizedTable) {
+        connect(normalizedTable, &QTableWidget::itemChanged, this, &MainWindow::updateButtonsState);
+    }
+
+    if (minimizedTable) {
+        connect(minimizedTable, &QTableWidget::itemChanged, this, &MainWindow::updateButtonsState);
+    }
+
+    if (paretoTable) {
+        connect(paretoTable, &QTableWidget::itemChanged, this, &MainWindow::updateButtonsState);
+    }
 }
 
 void MainWindow::analyzeDominance()
 {
     const QVector<QVector<double>> matrix = getMatrixFromTable(minimizedTable);
 
+    // 1. Збір індексів обраних параметрів
+    QVector<int> selectedCols;
+    for (int i = 0; i < parameterChecks.size(); ++i) {
+        if (parameterChecks[i]->isChecked())
+            selectedCols.append(i);
+    }
+
+    // Якщо не вибрано — беремо всі
+    if (selectedCols.isEmpty()) {
+        for (int i = 0; i < parameterChecks.size(); ++i)
+            selectedCols.append(i);
+    }
+
     for (int row = 0; row < minimizedTable->rowCount(); ++row) {
         for (int col = 0; col < minimizedTable->columnCount(); ++col) {
-            QTableWidgetItem *sourceItem = minimizedTable->item(row, col);
-            if (sourceItem) {
-                QTableWidgetItem *newItem = new QTableWidgetItem(*sourceItem);
-                newItem->setFlags(newItem->flags() & ~Qt::ItemIsEditable); // Заборонити редагування
-                paretoTable->setItem(row, col, newItem);
+            QTableWidgetItem *item = new QTableWidgetItem;
+            if (selectedCols.contains(col)) {
+                QTableWidgetItem *sourceItem = minimizedTable->item(row, col);
+                if (sourceItem) {
+                    item->setText(sourceItem->text());
+                }
+            } else {
+                item->setText(""); // залишити порожнім
+                item->setFlags(item->flags() & ~Qt::ItemIsEditable);
+                item->setBackground(QBrush(QColor(230, 230, 230))); // сірий для неактивних
             }
+            item->setFlags(item->flags() & ~Qt::ItemIsEditable);
+            paretoTable->setItem(row, col, item);
         }
     }
 
@@ -448,17 +540,32 @@ void MainWindow::analyzeDominance()
         if (excluded.contains(i))
             continue;
         for (int j = 0; j < matrix.size(); j++) {
-            if (i != j && !excluded.contains(j) && dominates(matrix[i], matrix[j])) {
-                worsePairs.emplace_back(j, i);
-                excluded.push_back(j);
+            if (i == j || excluded.contains(j))
+                continue;
+
+            bool dom = true;
+            bool strictlyBetter = false;
+
+            for (int col : selectedCols) {
+                if (matrix[i][col] > matrix[j][col]) {
+                    dom = false;
+                    break;
+                } else if (matrix[i][col] < matrix[j][col]) {
+                    strictlyBetter = true;
+                }
+            }
+
+            if (dom && strictlyBetter) {
+                worsePairs.append({j, i});
+                excluded.append(j);
             }
         }
     }
 
+    const QColor rowColor = QColor(255, 200, 200);
+
     for (int i = 0; i < matrix.size(); ++i) {
         QTableWidgetItem *item = new QTableWidgetItem;
-
-        const QColor rowColor = QColor(255, 200, 200);
 
         if (excluded.contains(i)) {
             int dominator = -1;
@@ -476,11 +583,13 @@ void MainWindow::analyzeDominance()
         item->setFlags(item->flags() & ~Qt::ItemIsEditable); // Заборонити редагування
         paretoTable->setItem(i, matrix[0].size(), item);
 
-        int colCount = paretoTable->columnCount();
-        for (int j = 0; j < colCount; ++j) {
-            if (item->text() != "ПО") {
-                QTableWidgetItem *cellItem = paretoTable->item(i, j);
-                cellItem->setBackground(QBrush(rowColor));
+        if (excluded.contains(i)) {
+            int colCount = paretoTable->columnCount();
+            for (int j = 0; j < colCount; ++j) {
+                if (item->text() != "ПО") {
+                    QTableWidgetItem *cellItem = paretoTable->item(i, j);
+                    cellItem->setBackground(QBrush(rowColor));
+                }
             }
         }
     }
@@ -581,26 +690,25 @@ void MainWindow::validateWeightSum()
 {
     double sum = 0.0;
     bool allValid = true;
+    int count = 0;
 
     for (QLineEdit *edit : weightEdits) {
-        QString text = edit->text().trimmed();
-        if (text.isEmpty()) {
-            allValid = false;
-            break;
-        }
+        if (!edit->isEnabled())
+            continue;
 
         bool ok;
-        double val = text.toDouble(&ok);
-        if (!ok) {
+        double val = edit->text().toDouble(&ok);
+        if (!ok || edit->text().isEmpty()) {
             allValid = false;
             break;
         }
         sum += val;
+        ++count;
     }
 
     const double epsilon = 0.0001;
 
-    bool showError = !allValid || std::abs(sum - 1.0) > epsilon;
+    bool showError = !allValid || count == 0 || std::abs(sum - 1.0) > epsilon;
 
     for (QLineEdit *edit : weightEdits) {
         if (showError) {
@@ -635,7 +743,14 @@ void MainWindow::updateWeightInputs()
 
     QRegularExpression regex(R"(^([0]|1|0[.,]\d{0,8}|1[.,]0{0,8})?$)");
 
-    int cols = inputTable->columnCount();
+    int cols = numCriteria;
+
+    // Визначаємо вибрані чекбокси
+    int selectedCount = 0;
+    for (QCheckBox *check : parameterChecks)
+        if (check->isChecked())
+            ++selectedCount;
+
     for (int i = 0; i < cols; ++i) {
         QLineEdit *edit = new QLineEdit(this);
         edit->setPlaceholderText(QString("П%1").arg(i + 1));
@@ -657,6 +772,14 @@ void MainWindow::updateWeightInputs()
                 edit->setCursorPosition(pos);
             }
         });
+
+        edit->setFixedWidth(partWidth);
+
+        // Встановлюємо активність поля згідно з чекбоксом
+        if (selectedCount > 0)
+            edit->setEnabled(parameterChecks[i]->isChecked());
+        else
+            edit->setEnabled(true); // якщо нічого не вибрано — всі активні
 
         weightEdits.append(edit);
         weightsLayout->addWidget(edit);
@@ -706,15 +829,11 @@ void MainWindow::updateParameterCheckboxes()
 
     for (int i = 0; i < numCriteria; ++i) {
         QCheckBox *check = new QCheckBox(QString::number(i + 1), this);
+        check->setFixedWidth(partWidth);
         parameterChecks.append(check);
         connect(check, &QCheckBox::stateChanged, this, &MainWindow::onParameterCheckChanged);
         checksLayout->addWidget(check);
     }
-
-    /*for (QCheckBox *check : parameterChecks) {
-        connect(check, &QCheckBox::stateChanged, this,
-    &MainWindow::onParameterCheckChanged);
-    }*/
 }
 
 void MainWindow::onParameterCheckChanged(
@@ -726,12 +845,7 @@ void MainWindow::onParameterCheckChanged(
         if (check->isChecked())
             ++selectedCount;
     }
-
-    // Якщо обрано вже 2 — блокуємо інші (ті, що не обрані)
-    for (QCheckBox *check : parameterChecks) {
-        if (!check->isChecked())
-            check->setEnabled(selectedCount < 2);
-    }
+    updateWeightInputs();
 }
 
 void MainWindow::updateTableSize()
@@ -788,6 +902,7 @@ void MainWindow::updateTableSize()
         combo->addItem("min");
         combo->addItem("max");
         combo->setCurrentText("min");
+        combo->setFixedWidth(partWidth);
         optimizationCombos.append(combo);
         optimizationLayout->addWidget(combo);
     }
@@ -797,6 +912,8 @@ QVector<double> MainWindow::getWeights() const
 {
     QVector<double> weights;
     for (QLineEdit *edit : weightEdits) {
+        if (!edit->isEnabled())
+            continue;
         bool ok = false;
         double val = edit->text().toDouble(&ok);
         if (!ok) {
@@ -821,11 +938,19 @@ void MainWindow::selectSingleOption()
             double value = 0.0;
             QString status = paretoTable->item(row, paretoTable->columnCount() - 1)->text();
             if (status == "ПО") {
+                QStringList formulaParts;
                 for (int col = 0; col < matrix[0].size(); ++col) {
                     double criterion = matrix[row][col];
                     double weight = weights[col];
                     value += criterion * weight;
+                    formulaParts << QString::number(weight, 'f', 2) + "*"
+                                        + QString::number(criterion, 'f', 2);
                 }
+
+                QString formula = formulaParts.join(" + ") + " = ";
+                QTableWidgetItem *formulaItem = new QTableWidgetItem(formula);
+                formulaItem->setFlags(formulaItem->flags() & ~Qt::ItemIsEditable);
+                valueFunctionTable->setItem(row, 0, formulaItem);
 
                 QTableWidgetItem *item = new QTableWidgetItem(QString::number(value, 'f', 4));
                 item->setFlags(item->flags() & ~Qt::ItemIsEditable); // Заборонити редагування
@@ -845,6 +970,7 @@ void MainWindow::selectSingleOption()
             }
         }
     highlightRowWithMinValue();
+    valueFunctionTable->resizeColumnToContents(0);
 
     int index = tabWidget->indexOf(valueFunctionTable);
     tabWidget->setCurrentIndex(index);
@@ -889,8 +1015,10 @@ void MainWindow::highlightRowWithMinValue()
 
 void MainWindow::loadMatrixFromFile()
 {
-    QString filePath = QFileDialog::
-        getOpenFileName(this, "Оберіть файл", "", "Text Files (*.txt);;All Files (*)");
+    QString filePath = QFileDialog::getOpenFileName(this,
+                                                    "Оберіть файл",
+                                                    "",
+                                                    "Text Files (*.txt);;All Files (*)");
     if (filePath.isEmpty())
         return;
 
@@ -904,12 +1032,27 @@ void MainWindow::loadMatrixFromFile()
 
     QTextStream in(&file);
     int row = 0;
+
     while (!in.atEnd() && row < inputTable->rowCount()) {
-        QString line = in.readLine();
-        QStringList values = line.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
+        QString line = in.readLine().trimmed();
+
+        // Прибираємо все зайве, але залишаємо кому в числі
+        // Замінимо табуляцію та крапку з комою на пробіл
+        line.replace("\t", " ");
+        line.replace(";", " ");
+        line = line.simplified(); // усуває повторні пробіли
+
+        // Тепер розділяємо рядок за пробілами
+        QStringList values = line.split(' ', Qt::SkipEmptyParts);
+
         for (int col = 0; col < values.size() && col < inputTable->columnCount(); ++col) {
-            inputTable->setItem(row, col, new QTableWidgetItem(values[col]));
+            QString value = values[col];
+            value.replace(",", "."); // замінюємо кому на крапку, якщо вона була в дробі
+            inputTable->setItem(row, col, new QTableWidgetItem(value));
         }
+
         ++row;
     }
+
+    file.close();
 }

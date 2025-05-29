@@ -8,7 +8,7 @@ int main(
 
     MainWindow window;
     window.setWindowTitle("Багатокритеріальна оптимізація");
-    window.resize(600, 400);
+    window.resize(1100, 400);
     window.show();
 
     return app.exec();

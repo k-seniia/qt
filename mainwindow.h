@@ -34,32 +34,43 @@ private slots:
     void updateWeightInputs();
     void drawGraphAxes(QGraphicsScene *scene);
     void onParameterCheckChanged(int);
+    void initConnections();
+    void updateWeightsState();
 
 private:
     int numAlternatives = 0;
     int numCriteria = 0;
-    const int margin = 35;
-    const int width = 350;
-    const int height = 350;
-    QGraphicsView *graphView;
-    QGraphicsScene *graphScene;
-    QHBoxLayout *checksLayout;
-    QHBoxLayout *weightsLayout;
-    QHBoxLayout *optimizationLayout;
-    QLabel *weightErrorLabel;
-    QLineEdit *filePathEdit;
+    const int margin = 30;
+    const int width = 375;
+    const int height = 375;
+    const int partWidth = 94;
+    QGraphicsView *graphView = nullptr;
+    QGraphicsScene *graphScene = nullptr;
+    QHBoxLayout *checksLayout = nullptr;
+    QHBoxLayout *weightsLayout = nullptr;
+    QHBoxLayout *optimizationLayout = nullptr;
+    QLabel *weightErrorLabel = nullptr;
+    QLineEdit *filePathEdit = nullptr;
+
+    // Ваги
     QVector<QLineEdit *> weightEdits;
+
+    // Параметри для графіка
     QVector<QCheckBox *> parameterChecks;
     QVector<QComboBox *> optimizationCombos;
-    QSpinBox *altSpin;
-    QSpinBox *critSpin;
-    QTabWidget *tabWidget;
-    QTableWidget *inputTable;
-    QTableWidget *normalizedTable;
-    QTableWidget *minimizedTable;
-    QTableWidget *paretoTable;
-    QTableWidget *valueFunctionTable;
-    QTableWidget *graphSummaryTable;
+    QSpinBox *altSpin = nullptr;
+    QSpinBox *critSpin = nullptr;
+    QTabWidget *tabWidget = nullptr;
+
+    // Таблиці
+    QTableWidget *inputTable = nullptr;
+    QTableWidget *normalizedTable = nullptr;
+    QTableWidget *minimizedTable = nullptr;
+    QTableWidget *paretoTable = nullptr;
+    QTableWidget *valueFunctionTable = nullptr;
+    QTableWidget *graphSummaryTable = nullptr;
+
+    // Кнопки
     QPushButton *fillNormButton = nullptr;
     QPushButton *fillMinButton = nullptr;
     QPushButton *analyzeDominanceButton = nullptr;
@@ -72,5 +83,4 @@ private:
     QVector<QVector<double>> getMatrixFromTable(QTableWidget *table) const;
 };
 
-bool dominates(const QVector<double> &a, const QVector<double> &b);
 QVector<QVector<double>> normalizeMatrix(const QVector<QVector<double>> &matrix);
