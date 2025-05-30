@@ -27,7 +27,7 @@ private slots:
     void analyzeDominance();
     void highlightRowWithMinValue();
     bool validateTableData();
-    void validateWeightSum();
+    bool validateWeightSum();
     void updateButtonsState();
     void updateTableSize();
     void updateParameterCheckboxes();
@@ -36,8 +36,11 @@ private slots:
     void onParameterCheckChanged(int);
     void initConnections();
     void updateWeightsState();
+    void highlightRow(QTableWidget *table, int row, QColor color);
+    void clearLayout(QLayout *layout);
 
 private:
+    bool weightFieldsTouched = false;
     int numAlternatives = 0;
     int numCriteria = 0;
     const int margin = 30;
@@ -81,6 +84,10 @@ private:
     QVector<double> getWeights() const;
     QVector<QString> getOptimizationTargets() const;
     QVector<QVector<double>> getMatrixFromTable(QTableWidget *table) const;
+    bool isTableFilled(QTableWidget *table) const;
+    QVector<int> getSelectedParameterIndexes() const;
+    QVector<int> getEffectiveColumns() const;
+    QVector<double> getSelectedWeights(const QVector<int> &selectedCols) const;
 };
 
 QVector<QVector<double>> normalizeMatrix(const QVector<QVector<double>> &matrix);

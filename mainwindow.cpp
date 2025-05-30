@@ -205,17 +205,23 @@ MainWindow::MainWindow(
     initConnections();
 }
 
+QVector<int> MainWindow::getSelectedParameterIndexes() const
+{
+    QVector<int> selected;
+    for (int i = 0; i < parameterChecks.size(); ++i) {
+        if (parameterChecks[i]->isChecked())
+            selected.append(i);
+    }
+    return selected;
+}
+
 void MainWindow::plotGraph()
 {
     graphScene->clear();
     graphSummaryTable->clearContents();
     graphSummaryTable->setRowCount(0);
 
-    QVector<int> selectedColumns;
-    for (int i = 0; i < parameterChecks.size(); ++i) {
-        if (parameterChecks[i]->isChecked())
-            selectedColumns.append(i);
-    }
+    QVector<int> selectedColumns = getSelectedParameterIndexes();
 
     if (selectedColumns.size() != 2) {
         QMessageBox::warning(this, "Помилка", "Оберіть рівно 2 параметри для побудови БДО.");
@@ -335,98 +341,59 @@ void MainWindow::drawGraphAxes(
     scene->addText("Y")->setPos(margin - 20, margin - 30);
 }
 
+bool MainWindow::isTableFilled(
+    QTableWidget *table) const
+{
+    if (!table || table->rowCount() == 0 || table->columnCount() == 0)
+        return false;
+
+    for (int i = 0; i < table->rowCount(); ++i) {
+        for (int j = 0; j < table->columnCount(); ++j) {
+            QTableWidgetItem *item = table->item(i, j);
+            if (!item || item->text().isEmpty())
+                return false;
+        }
+    }
+    return true;
+}
+
 void MainWindow::updateButtonsState()
 {
     // --- 1. Перевірка normalizedTable для кнопки мінімізації ---
-    bool normReady = normalizedTable && normalizedTable->rowCount() > 0
-                     && normalizedTable->columnCount() > 0;
-    if (normReady) {
-        for (int i = 0; i < normalizedTable->rowCount() && normReady; ++i) {
-            for (int j = 0; j < normalizedTable->columnCount(); ++j) {
-                QTableWidgetItem *item = normalizedTable->item(i, j);
-                if (!item || item->text().isEmpty()) {
-                    normReady = false;
-                    break;
-                }
-            }
-        }
-    }
+    bool normReady = isTableFilled(normalizedTable);
     if (fillMinButton)
         fillMinButton->setEnabled(normReady);
 
     // --- 2. Перевірка minimizedTable для аналізу домінування ---
-    bool minReady = minimizedTable && minimizedTable->rowCount() > 0
-                    && minimizedTable->columnCount() > 0;
-    if (minReady) {
-        for (int i = 0; i < minimizedTable->rowCount() && minReady; ++i) {
-            for (int j = 0; j < minimizedTable->columnCount(); ++j) {
-                QTableWidgetItem *item = minimizedTable->item(i, j);
-                if (!item || item->text().isEmpty()) {
-                    minReady = false;
-                    break;
-                }
-            }
-        }
-    }
+    bool minReady = isTableFilled(minimizedTable);
     if (analyzeDominanceButton)
         analyzeDominanceButton->setEnabled(minReady);
 
-    // --- 3. Перевірка ваг (weightsValid) ---
-    bool weightsValid = true;
-    double weightSum = 0.0;
-    bool anyWeightUsed = false;
-
-    for (QLineEdit *edit : weightEdits) {
-        if (!edit->isEnabled())
-            continue; // ігноруємо неактивні поля
-
-        anyWeightUsed = true;
-        bool ok;
-        double val = edit->text().replace(",", ".").toDouble(&ok);
-        if (!ok || edit->text().isEmpty()) {
-            weightsValid = false;
+    // --- Перевірка, чи вибрано хоч один чекбокс ---
+    bool anyCheckBoxSelected = false;
+    for (QCheckBox *check : parameterChecks) {
+        if (check->isChecked()) {
+            anyCheckBoxSelected = true;
             break;
         }
-        weightSum += val;
     }
 
-    const double epsilon = 0.0001;
-    if (!anyWeightUsed || std::abs(weightSum - 1.0) > epsilon)
-        weightsValid = false;
+    // --- 3. Перевірка ваг (weightsValid) ---
+    bool weightsValid = validateWeightSum();
 
     // --- 4. Перевірка, що paretoTable готова ---
-    bool paretoReady = paretoTable && paretoTable->rowCount() > 0 && paretoTable->columnCount() > 0;
-    if (paretoReady) {
-        for (int i = 0; i < paretoTable->rowCount() && paretoReady; ++i) {
-            for (int j = 0; j < paretoTable->columnCount(); ++j) {
-                QTableWidgetItem *item = paretoTable->item(i, j);
-                if (!item || item->text().isEmpty()) {
-                    paretoReady = false;
-                    break;
-                }
-            }
-        }
-    }
+    bool paretoReady = isTableFilled(paretoTable);
 
     if (singleOptionButton)
         singleOptionButton->setEnabled((paretoReady && weightsValid));
 
     // --- 5. Перевірка, чи можна активувати кнопку графіка ---
-    int selectedCount = 0;
-    for (QCheckBox *check : parameterChecks) {
-        if (check->isChecked())
-            ++selectedCount;
-    }
+    int selectedCount = getSelectedParameterIndexes().size();
 
     bool plotReady = minReady && (selectedCount == 2);
 
     if (plotButton)
         plotButton->setEnabled(plotReady);
-
-    /*bool allReady = weightsValid && (selectedCount == 2);
-
-    if (runAllButton)
-        runAllButton->setEnabled(allReady);*/
 }
 
 QVector<QVector<double>> MainWindow::getMatrixFromTable(
@@ -447,12 +414,7 @@ QVector<QVector<double>> MainWindow::getMatrixFromTable(
 void MainWindow::updateWeightsState()
 {
     // Підрахунок обраних параметрів
-    QVector<int> selectedIndexes;
-    for (int i = 0; i < parameterChecks.size(); ++i) {
-        if (parameterChecks[i]->isChecked()) {
-            selectedIndexes.append(i);
-        }
-    }
+    QVector<int> selectedIndexes = getSelectedParameterIndexes();
 
     // Якщо нічого не вибрано — активуємо всі поля
     bool enableAll = selectedIndexes.isEmpty();
@@ -504,11 +466,7 @@ void MainWindow::analyzeDominance()
     const QVector<QVector<double>> matrix = getMatrixFromTable(minimizedTable);
 
     // 1. Збір індексів обраних параметрів
-    QVector<int> selectedCols;
-    for (int i = 0; i < parameterChecks.size(); ++i) {
-        if (parameterChecks[i]->isChecked())
-            selectedCols.append(i);
-    }
+    QVector<int> selectedCols = getSelectedParameterIndexes();
 
     // Якщо не вибрано — беремо всі
     if (selectedCols.isEmpty()) {
@@ -686,8 +644,23 @@ void MainWindow::fillMinimizedTable()
     updateButtonsState();
 }
 
-void MainWindow::validateWeightSum()
+bool MainWindow::validateWeightSum()
 {
+    // Якщо вагові поля ще не були створені — нічого не перевіряємо
+    if (weightEdits.isEmpty()) {
+        if (weightErrorLabel)
+            weightErrorLabel->setText("");
+        return false;
+    }
+
+    if (!weightFieldsTouched) {
+        for (QLineEdit *edit : weightEdits)
+            edit->setStyleSheet("");
+        if (weightErrorLabel)
+            weightErrorLabel->setText("");
+        return false;
+    }
+
     double sum = 0.0;
     bool allValid = true;
     int count = 0;
@@ -707,7 +680,6 @@ void MainWindow::validateWeightSum()
     }
 
     const double epsilon = 0.0001;
-
     bool showError = !allValid || count == 0 || std::abs(sum - 1.0) > epsilon;
 
     for (QLineEdit *edit : weightEdits) {
@@ -728,6 +700,18 @@ void MainWindow::validateWeightSum()
             weightErrorLabel->setText("");
         }
     }
+
+    return !showError;
+}
+
+void MainWindow::clearLayout(
+    QLayout *layout)
+{
+    QLayoutItem *child;
+    while ((child = layout->takeAt(0)) != nullptr) {
+        delete child->widget();
+        delete child;
+    }
 }
 
 void MainWindow::updateWeightInputs()
@@ -735,11 +719,7 @@ void MainWindow::updateWeightInputs()
     qDeleteAll(weightEdits);
     weightEdits.clear();
 
-    QLayoutItem *child;
-    while ((child = weightsLayout->takeAt(0)) != nullptr) {
-        delete child->widget();
-        delete child;
-    }
+    clearLayout(weightsLayout);
 
     QRegularExpression regex(R"(^([0]|1|0[.,]\d{0,8}|1[.,]0{0,8})?$)");
 
@@ -759,7 +739,9 @@ void MainWindow::updateWeightInputs()
         edit->setValidator(validator);
 
         connect(edit, &QLineEdit::textChanged, this, [this]() {
-            validateWeightSum(); // новий метод
+            weightFieldsTouched = true;
+            validateWeightSum();
+            updateButtonsState(); // одразу оновлюємо кнопку, коли вводиться вага
         });
 
         // Автоматична заміна коми на крапку
@@ -820,11 +802,7 @@ bool MainWindow::validateTableData()
 
 void MainWindow::updateParameterCheckboxes()
 {
-    QLayoutItem *child;
-    while ((child = checksLayout->takeAt(0)) != nullptr) {
-        delete child->widget();
-        delete child;
-    }
+    clearLayout(weightsLayout);
     parameterChecks.clear();
 
     for (int i = 0; i < numCriteria; ++i) {
@@ -834,18 +812,19 @@ void MainWindow::updateParameterCheckboxes()
         connect(check, &QCheckBox::stateChanged, this, &MainWindow::onParameterCheckChanged);
         checksLayout->addWidget(check);
     }
+    updateButtonsState();
 }
 
 void MainWindow::onParameterCheckChanged(
     int)
 {
-    // Рахуємо кількість обраних
-    int selectedCount = 0;
-    for (QCheckBox *check : parameterChecks) {
-        if (check->isChecked())
-            ++selectedCount;
+    for (int i = 0; i < parameterChecks.size(); ++i) {
+        QCheckBox *check = parameterChecks[i];
+        QLineEdit *edit = weightEdits[i];
+        edit->setEnabled(check->isChecked());
     }
-    updateWeightInputs();
+    validateWeightSum();
+    updateButtonsState();
 }
 
 void MainWindow::updateTableSize()
@@ -925,23 +904,71 @@ QVector<double> MainWindow::getWeights() const
     return weights;
 }
 
+QVector<int> MainWindow::getEffectiveColumns() const
+{
+    QVector<int> selected = getSelectedParameterIndexes();
+    if (selected.isEmpty()) {
+        for (int i = 0; i < parameterChecks.size(); ++i)
+            selected.append(i);
+    }
+    return selected;
+}
+
+QVector<double> MainWindow::getSelectedWeights(
+    const QVector<int> &selectedCols) const
+{
+    QVector<double> weights;
+    for (int i : selectedCols) {
+        QLineEdit *edit = weightEdits[i];
+        if (!edit->isEnabled())
+            continue;
+
+        bool ok;
+        double val = edit->text().toDouble(&ok);
+        if (!ok) {
+            QMessageBox::warning(nullptr, "Помилка", "Некоректне значення ваги.");
+            return {};
+        }
+        weights.append(val);
+    }
+    return weights;
+}
+
 void MainWindow::selectSingleOption()
 {
     QVector<QVector<double>> matrix = getMatrixFromTable(minimizedTable);
-    QVector<double> weights = getWeights();
 
-    if (weights.empty()) {
-        QMessageBox::warning(nullptr, "Помилка", "Пусте значення ваги.");
+    // 1. Визначаємо вибрані колонки
+    QVector<int> selectedCols = getEffectiveColumns();
+
+    // Якщо нічого не обрано – використовуємо всі
+    bool useAll = selectedCols.isEmpty();
+    if (useAll) {
+        for (int i = 0; i < parameterChecks.size(); ++i)
+            selectedCols.append(i);
+    }
+
+    // 2. Отримуємо тільки відповідні ваги
+    QVector<double> weights = getSelectedWeights(selectedCols);
+    if (weights.isEmpty())
         return;
-    } else
+
+    if (weights.size() != selectedCols.size()) {
+        QMessageBox::warning(this,
+                             "Помилка",
+                             "Кількість ваг не відповідає кількості вибраних критеріїв.");
+        return;
+    } else {
+        // 3. Обчислення функції цінності лише для Парето-рядків
         for (int row = 0; row < matrix.size(); ++row) {
             double value = 0.0;
             QString status = paretoTable->item(row, paretoTable->columnCount() - 1)->text();
             if (status == "ПО") {
                 QStringList formulaParts;
-                for (int col = 0; col < matrix[0].size(); ++col) {
+                for (int i = 0; i < selectedCols.size(); ++i) {
+                    int col = selectedCols[i];
                     double criterion = matrix[row][col];
-                    double weight = weights[col];
+                    double weight = weights[i];
                     value += criterion * weight;
                     formulaParts << QString::number(weight, 'f', 2) + "*"
                                         + QString::number(criterion, 'f', 2);
@@ -956,24 +983,28 @@ void MainWindow::selectSingleOption()
                 item->setFlags(item->flags() & ~Qt::ItemIsEditable); // Заборонити редагування
                 valueFunctionTable->setItem(row, 1, item);
             } else {
-                const QColor rowColor = QColor(255, 200, 200);
-                //valueFunctionTable->setItem(row, 1, new QTableWidgetItem(""));
-                int colCount = valueFunctionTable->columnCount();
-                for (int j = 0; j < colCount; ++j) {
-                    QTableWidgetItem *cellItem = valueFunctionTable->item(row, j);
-                    if (!cellItem) {
-                        cellItem = new QTableWidgetItem();
-                        valueFunctionTable->setItem(row, j, cellItem);
-                    }
-                    cellItem->setBackground(QBrush(rowColor));
-                }
+                highlightRow(valueFunctionTable, row, QColor(255, 200, 200));
             }
         }
+    }
     highlightRowWithMinValue();
     valueFunctionTable->resizeColumnToContents(0);
 
     int index = tabWidget->indexOf(valueFunctionTable);
     tabWidget->setCurrentIndex(index);
+}
+
+void MainWindow::highlightRow(
+    QTableWidget *table, int row, QColor color)
+{
+    for (int col = 0; col < table->columnCount(); ++col) {
+        QTableWidgetItem *item = table->item(row, col);
+        if (!item) {
+            item = new QTableWidgetItem();
+            table->setItem(row, col, item);
+        }
+        item->setBackground(QBrush(color));
+    }
 }
 
 void MainWindow::highlightRowWithMinValue()
