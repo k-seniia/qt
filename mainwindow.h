@@ -1,6 +1,22 @@
+#include <QCheckBox>
+#include <QComboBox>
+#include <QFile>
+#include <QFileDialog>
+#include <QGraphicsTextItem>
 #include <QGraphicsView>
+#include <QHBoxLayout>
+#include <QHeaderView>
+#include <QLabel>
+#include <QLineEdit>
 #include <QMainWindow>
+#include <QMessageBox>
+#include <QPushButton>
+#include <QSpinBox>
+#include <QTableWidget>
+#include <QTextStream>
+#include <QVBoxLayout>
 #include <QVector>
+#include <QWidget>
 
 class QTableWidget;
 class QLineEdit;
@@ -36,7 +52,6 @@ private slots:
     void onParameterCheckChanged(int);
     void initConnections();
     void updateWeightsState();
-    void highlightRow(QTableWidget *table, int row, QColor color);
     void clearLayout(QLayout *layout);
 
 private:
@@ -84,10 +99,11 @@ private:
     QVector<double> getWeights() const;
     QVector<QString> getOptimizationTargets() const;
     QVector<QVector<double>> getMatrixFromTable(QTableWidget *table) const;
-    bool isTableFilled(QTableWidget *table) const;
     QVector<int> getSelectedParameterIndexes() const;
-    QVector<int> getEffectiveColumns() const;
-    QVector<double> getSelectedWeights(const QVector<int> &selectedCols) const;
+    bool isTableFilled(QTableWidget *table) const;
+    QVector<int> getSelectedColumnIndices() const;
+    QVector<double> getActiveWeights(const QVector<int> &selectedCols) const;
+    bool isTableFilledOnlyForActiveColumns(QTableWidget *table) const;
 };
 
 QVector<QVector<double>> normalizeMatrix(const QVector<QVector<double>> &matrix);
