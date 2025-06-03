@@ -1,4 +1,6 @@
 #include "mainwindow.h"
+#include <QFormLayout>
+#include <QGroupBox>
 #include "doubleitemdelegate.h"
 
 MainWindow::MainWindow(
@@ -14,32 +16,38 @@ MainWindow::MainWindow(
     //
     QHBoxLayout *inputLayout = new QHBoxLayout();
 
-    QWidget *sizeContainer = new QWidget(this);
+    QGroupBox *sizeContainer = new QGroupBox(this);
     QHBoxLayout *sizeLayout = new QHBoxLayout(sizeContainer);
-    sizeLayout->setContentsMargins(0, 0, 10, 0);
+    sizeLayout->setContentsMargins(3, 3, 3, 3);
 
     sizeLayout->addWidget(new QLabel("Альтернативи:", this), 1);
     altSpin = new QSpinBox(this);
     altSpin->setRange(2, 100);
     altSpin->setValue(5);
+    altSpin->setToolTip("Кількість рядків (від 2 до 100)");
     sizeLayout->addWidget(altSpin, 1);
 
     sizeLayout->addWidget(new QLabel("Параметри:", this), 1);
     critSpin = new QSpinBox(this);
     critSpin->setRange(2, 10);
     critSpin->setValue(5);
+    critSpin->setToolTip("Кількість стовбців (від 2 до 10)");
     sizeLayout->addWidget(critSpin, 1);
 
-    QPushButton *resizeButton = new QPushButton("Оновити таблицю", this);
+    resizeButton = new QPushButton("Оновити таблицю", this);
+    resizeButton->setToolTip("Оновлюються розміри усіх таблиць");
     connect(resizeButton, &QPushButton::clicked, this, &MainWindow::updateTableSize);
     sizeLayout->addWidget(resizeButton, 2);
 
-    QWidget *fileContainer = new QWidget(this);
+    QGroupBox *fileContainer = new QGroupBox(this);
     QHBoxLayout *fileLayout = new QHBoxLayout(fileContainer);
-    fileLayout->setContentsMargins(10, 0, 0, 0);
+    fileLayout->setContentsMargins(3, 3, 3, 3);
 
     filePathEdit = new QLineEdit(this);
+    filePathEdit->setToolTip(
+        "Введіть або виберіть шлях до файлу з даними для таблиці\n" "Кома, як роздільник між " "зна" "чен" "ням" "и, " "зчи" "тає" "тьс" "я " "некоректно");
     QPushButton *loadButton = new QPushButton("Завантажити таблицю", this);
+    loadButton->setToolTip("Заповнити початкову таблицю");
     connect(loadButton, &QPushButton::clicked, this, &MainWindow::loadMatrixFromFile);
     fileLayout->addWidget(filePathEdit, 3);
     fileLayout->addWidget(loadButton, 2);
@@ -53,9 +61,8 @@ MainWindow::MainWindow(
     //
 
     //
-    QLabel *optLabel = new QLabel("Визначення критеріїв:");
-    optimizationLayout = new QHBoxLayout();
-    mainLayout->addWidget(optLabel);
+    QGroupBox *optContainer = new QGroupBox("Мінімізація/Максимізація параметрів:", this);
+    optimizationLayout = new QHBoxLayout(optContainer);
     for (int i = 0; i < 5; ++i) {
         QComboBox *combo = new QComboBox();
         combo->addItem("min");
@@ -66,31 +73,28 @@ MainWindow::MainWindow(
         optimizationLayout->addWidget(combo);
     }
     optimizationLayout->setAlignment(Qt::AlignLeft);
-    optimizationLayout->setContentsMargins(20, 0, 0, 0);
-    mainLayout->addLayout(optimizationLayout);
+    optimizationLayout->setContentsMargins(20, 0, 3, 3);
+    optContainer->setToolTip(
+        "Після внесення змін рекомендовано перерахувати таблицю мінімізації " "та всі залежні " "ві" "д " "неї");
+    mainLayout->addWidget(optContainer);
     //
 
     //
-    QHBoxLayout *weightLableLayout = new QHBoxLayout();
-    QLabel *weightLabel
-        = new QLabel("Введіть коефіціїєнти важливості для кожного показника якості:", this);
-    weightLableLayout->addWidget(weightLabel);
-    weightErrorLabel = new QLabel("", this);
-    weightLableLayout->addWidget(weightErrorLabel);
-    mainLayout->addLayout(weightLableLayout);
-
-    weightsLayout = new QHBoxLayout();
+    QGroupBox *weightContainer = new QGroupBox("Коефіцієнти цінності:", this);
+    weightsLayout = new QHBoxLayout(weightContainer);
     weightsLayout->setAlignment(Qt::AlignLeft);
-    weightsLayout->setContentsMargins(20, 0, 0, 0);
-    mainLayout->addLayout(weightsLayout);
+    weightsLayout->setContentsMargins(20, 0, 3, 3);
+    mainLayout->addWidget(weightContainer);
     updateWeightInputs();
     //
 
     //
-    checksLayout = new QHBoxLayout();
+    QGroupBox *checksContainer = new QGroupBox(this);
+    checksLayout = new QHBoxLayout(checksContainer);
     checksLayout->setAlignment(Qt::AlignLeft);
     checksLayout->setContentsMargins(55, 0, 0, 0);
-    mainLayout->addLayout(checksLayout);
+    checksContainer->setToolTip("Після внесення змін рекомендовано перерахувати ПО та Ф. цінності");
+    mainLayout->addWidget(checksContainer);
     updateParameterCheckboxes();
     //
 
@@ -101,16 +105,20 @@ MainWindow::MainWindow(
 
     inputTable = new QTableWidget(numAlternatives, numCriteria, this);
     inputTable->setHorizontalHeaderLabels(headers);
+    inputTable->setToolTip("Введіть початкові значення параметрів");
 
     normalizedTable = new QTableWidget(numAlternatives, numCriteria, this);
     normalizedTable->setHorizontalHeaderLabels(headers);
+    normalizedTable->setToolTip("Нормалізовані значення");
 
     minimizedTable = new QTableWidget(numAlternatives, numCriteria, this);
     minimizedTable->setHorizontalHeaderLabels(headers);
+    minimizedTable->setToolTip("Перетворені значення для мінімізації");
 
     paretoTable = new QTableWidget(numAlternatives, numCriteria + 1, this);
     headers << "Статус";
     paretoTable->setHorizontalHeaderLabels(headers);
+    paretoTable->setToolTip("Результати Парето-аналізу");
 
     headers.clear();
 
@@ -118,11 +126,16 @@ MainWindow::MainWindow(
     headers << "Розрахунок";
     headers << "Ф. цінності";
     valueFunctionTable->setHorizontalHeaderLabels(headers);
+    valueFunctionTable->setToolTip("Розрахунок скалярної функції цінності для єдиного вибору");
 
     tab = new QWidget(this);
 
     graphSummaryTable = new QTableWidget(numAlternatives, 3, this);
     graphSummaryTable->setHorizontalHeaderLabels({"Параметр X", "Параметр Y", "Статус"});
+    graphSummaryTable->setToolTip("Зведення мінімізованих параметрів для БДО");
+
+    graphChecksLayout = new QVBoxLayout();
+    updateParameterCheckboxes();
 
     graphScene = new QGraphicsScene(tab);
     graphView = new QGraphicsView(graphScene, tab);
@@ -130,8 +143,10 @@ MainWindow::MainWindow(
 
     QHBoxLayout *graphLayout = new QHBoxLayout(tab);
     graphLayout->addWidget(graphSummaryTable);
+    graphLayout->addLayout(graphChecksLayout);
     graphLayout->addWidget(graphView);
     drawGraphAxes(graphScene);
+    updateGraphParameterCheckboxes();
     //
 
     auto *doubleDelegate = new DoubleItemDelegate(this);
@@ -157,6 +172,8 @@ MainWindow::MainWindow(
             return;
         fillNormalizedTable();
     });
+    fillNormButton->setToolTip(
+        "Нормалізує значення матриці (від 0 до 1)\nПотребує заповненої вхідної таблиці");
 
     fillMinButton = new QPushButton("Мінімізація значень", this);
     connect(fillMinButton, &QPushButton::clicked, this, [this]() {
@@ -165,18 +182,26 @@ MainWindow::MainWindow(
         fillMinimizedTable();
     });
     fillMinButton->setEnabled(false);
+    fillMinButton->setToolTip(
+        "Перетворює завдання на задачу мінімізації\nПотребує таблицю " "нормалізації та " "обраних " "опцій " "мін/макс");
 
     analyzeDominanceButton = new QPushButton("Парето-оптимізація", this);
     connect(analyzeDominanceButton, &QPushButton::clicked, this, &MainWindow::analyzeDominance);
     analyzeDominanceButton->setEnabled(false);
+    analyzeDominanceButton->setToolTip(
+        "Аналіз Парето-оптимальних рішень\nПотребує таблицю мінімізації");
 
     singleOptionButton = new QPushButton("Вибір єдиного варіанта", this);
     connect(singleOptionButton, &QPushButton::clicked, this, &MainWindow::selectSingleOption);
     singleOptionButton->setEnabled(false);
+    singleOptionButton->setToolTip(
+        "Знаходить єдиний варіант серед Парето-рішень\nПотребує таблицю " "мінімізації та " "заповн" "ені " "коефіц" "ієнт" "и");
 
     plotButton = new QPushButton("Побудувати БДО", this);
     connect(plotButton, &QPushButton::clicked, this, &MainWindow::plotGraph);
     plotButton->setEnabled(false);
+    plotButton->setToolTip(
+        "Побудувати двовимірний графік для обраних параметрів\nПотребує таблицю " "мінімізації та " "ДВА обраних " "параметри");
 
     QHBoxLayout *buttonLayout = new QHBoxLayout();
     buttonLayout->addWidget(fillNormButton);
@@ -205,7 +230,10 @@ void MainWindow::plotGraph()
     graphSummaryTable->clearContents();
     graphSummaryTable->setRowCount(0);
 
-    QVector<int> selectedColumns = getSelectedParameterIndexes();
+    QVector<int> selectedColumns;
+    for (int i = 0; i < graphParameterChecks.size(); ++i)
+        if (graphParameterChecks[i]->isChecked())
+            selectedColumns.append(i);
 
     if (selectedColumns.size() != 2) {
         QMessageBox::warning(this, "Помилка", "Оберіть рівно 2 параметри для побудови БДО.");
@@ -344,6 +372,9 @@ bool MainWindow::isTableFilled(
 bool MainWindow::isTableFilledOnlyForActiveColumns(
     QTableWidget *table) const
 {
+    if (!table)
+        return false;
+
     QVector<int> activeCols = getSelectedParameterIndexes();
 
     for (int i = 0; i < table->rowCount(); ++i) {
@@ -385,9 +416,13 @@ void MainWindow::updateButtonsState()
         singleOptionButton->setEnabled((paretoReady && weightsValid));
 
     // --- 5. Перевірка, чи можна активувати кнопку графіка ---
-    int selectedCount = getSelectedParameterIndexes().size();
+    int selectedParameters = 0;
+    for (int i = 0; i < graphParameterChecks.size(); ++i) {
+        if (parameterChecks[i]->isChecked())
+            selectedParameters++;
+    };
 
-    bool plotReady = minReady && (selectedCount == 2);
+    bool plotReady = minReady && (selectedParameters == 2);
 
     if (plotButton)
         plotButton->setEnabled(plotReady);
@@ -434,6 +469,12 @@ void MainWindow::initConnections()
                 updateWeightsState();
                 updateButtonsState(); // Якщо також потрібно оновити стан кнопок
             });
+        }
+    }
+
+    for (QCheckBox *check : graphParameterChecks) {
+        if (check) {
+            connect(check, &QCheckBox::stateChanged, this, &MainWindow::updateButtonsState);
         }
     }
 
@@ -645,10 +686,10 @@ bool MainWindow::validateWeightSum()
 {
     // Якщо вагові поля ще не були створені — нічого не перевіряємо
     if (!weightFieldsTouched) {
-        for (QLineEdit *edit : weightEdits)
+        for (QLineEdit *edit : weightEdits) {
             edit->setStyleSheet("");
-        if (weightErrorLabel)
-            weightErrorLabel->setText("");
+            edit->setToolTip("");
+        }
         return false;
     }
 
@@ -664,35 +705,32 @@ bool MainWindow::validateWeightSum()
         double val = edit->text().toDouble(&ok);
         if (!ok || edit->text().isEmpty()) {
             allValid = false;
-            break;
+            // Встановлюємо підказку
+            edit->setToolTip("Некоректне значення! Введіть число від 0 до 1.");
+            continue;
+        } else {
+            edit->setToolTip(""); // Знімаємо підказку, якщо все гаразд
         }
         sum += val;
         ++count;
     }
 
     const double epsilon = 0.0001;
-    bool showError = !allValid || count == 0 || std::abs(sum - 1.0) > epsilon;
+    bool sumError = (count == 0 || std::abs(sum - 1.0) > epsilon);
 
-    // Підсвічування тільки активних
     for (QLineEdit *edit : weightEdits) {
         if (!edit->isEnabled())
             continue;
-        edit->setStyleSheet(showError ? "background-color: #ffcccc" : "");
-    }
-
-    if (weightErrorLabel) {
-        if (showError) {
-            if (!allValid)
-                weightErrorLabel->setText(
-                    "Усі активні поля мають бути заповнені коректними числами.");
-            else
-                weightErrorLabel->setText("Сума ваг повинна дорівнювати 1.");
-        } else {
-            weightErrorLabel->setText("");
+        if (sumError && allValid) {
+            QString tip = QString("Сума всіх активних ваг: %1 (має бути 1.0)").arg(sum, 0, 'f', 3);
+            edit->setToolTip(tip);
+        } else if (!allValid && edit->toolTip().isEmpty()) {
+            edit->setToolTip("");
         }
+        edit->setStyleSheet((sumError || !allValid) ? "background-color: #ffcccc" : "");
     }
 
-    return !showError;
+    return allValid && !sumError;
 }
 
 void MainWindow::clearLayout(
@@ -758,8 +796,6 @@ void MainWindow::updateWeightInputs()
         weightsLayout->addWidget(edit);
     }
 
-    weightErrorLabel->setStyleSheet("color: red;");
-
     updateButtonsState();
 }
 
@@ -791,6 +827,24 @@ bool MainWindow::validateTableData()
     return true;
 }
 
+void MainWindow::updateGraphParameterCheckboxes()
+{
+    QLayoutItem *child;
+    while ((child = graphChecksLayout->takeAt(0)) != nullptr) {
+        delete child->widget();
+        delete child;
+    }
+    graphParameterChecks.clear();
+
+    for (int i = 0; i < numCriteria; ++i) {
+        QCheckBox *check = new QCheckBox(QString::number(i + 1), this);
+        check->setFixedWidth(partWidth);
+        graphParameterChecks.append(check);
+        connect(check, &QCheckBox::stateChanged, this, &MainWindow::onParameterGraphCheckChanged);
+        graphChecksLayout->addWidget(check);
+    }
+}
+
 void MainWindow::updateParameterCheckboxes()
 {
     QLayoutItem *child;
@@ -806,6 +860,23 @@ void MainWindow::updateParameterCheckboxes()
         parameterChecks.append(check);
         connect(check, &QCheckBox::stateChanged, this, &MainWindow::onParameterCheckChanged);
         checksLayout->addWidget(check);
+    }
+}
+
+void MainWindow::onParameterGraphCheckChanged(
+    int)
+{
+    // Рахуємо кількість обраних
+    int selectedCount = 0;
+    for (QCheckBox *check : graphParameterChecks) {
+        if (check->isChecked())
+            ++selectedCount;
+    }
+
+    // Якщо обрано вже 2 — блокуємо інші (ті, що не обрані)
+    for (QCheckBox *check : graphParameterChecks) {
+        if (!check->isChecked())
+            check->setEnabled(selectedCount < 2);
     }
 }
 
@@ -853,12 +924,14 @@ void MainWindow::updateTableSize()
 
     valueFunctionTable->clear();
     valueFunctionTable->setRowCount(numAlternatives);
+    valueFunctionTable->setHorizontalHeaderLabels({"Розрахунок", "Ф. цінності"});
 
     graphSummaryTable->clear();
     graphSummaryTable->setRowCount(numAlternatives);
     graphSummaryTable->setHorizontalHeaderLabels({"Параметр X", "Параметр Y", "Статус"});
 
     updateParameterCheckboxes();
+    updateGraphParameterCheckboxes();
     updateWeightInputs();
 
     qDeleteAll(optimizationCombos);
@@ -931,6 +1004,8 @@ QVector<double> MainWindow::getActiveWeights(
 
 void MainWindow::selectSingleOption()
 {
+    valueFunctionTable->clearContents();
+
     const QVector<QVector<double>> matrix = getMatrixFromTable(minimizedTable);
     const QVector<int> selectedCols = getSelectedColumnIndices();
     const QVector<double> activeWeights = getActiveWeights(selectedCols);

@@ -47,9 +47,11 @@ private slots:
     void updateButtonsState();
     void updateTableSize();
     void updateParameterCheckboxes();
+    void updateGraphParameterCheckboxes();
     void updateWeightInputs();
     void drawGraphAxes(QGraphicsScene *scene);
     void onParameterCheckChanged(int);
+    void onParameterGraphCheckChanged(int);
     void initConnections();
     void updateWeightsState();
     void clearLayout(QLayout *layout);
@@ -64,10 +66,10 @@ private:
     const int partWidth = 94;
     QGraphicsView *graphView = nullptr;
     QGraphicsScene *graphScene = nullptr;
+    QVBoxLayout *graphChecksLayout = nullptr;
     QHBoxLayout *checksLayout = nullptr;
     QHBoxLayout *weightsLayout = nullptr;
     QHBoxLayout *optimizationLayout = nullptr;
-    QLabel *weightErrorLabel = nullptr;
     QLineEdit *filePathEdit = nullptr;
 
     // Ваги
@@ -76,6 +78,8 @@ private:
     // Параметри для графіка
     QVector<QCheckBox *> parameterChecks;
     QVector<QComboBox *> optimizationCombos;
+    QVector<QCheckBox *> graphParameterChecks;
+
     QSpinBox *altSpin = nullptr;
     QSpinBox *critSpin = nullptr;
     QTabWidget *tabWidget = nullptr;
@@ -89,6 +93,7 @@ private:
     QTableWidget *graphSummaryTable = nullptr;
 
     // Кнопки
+    QPushButton *resizeButton = nullptr;
     QPushButton *fillNormButton = nullptr;
     QPushButton *fillMinButton = nullptr;
     QPushButton *analyzeDominanceButton = nullptr;
