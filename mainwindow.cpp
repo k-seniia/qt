@@ -1,23 +1,18 @@
 #include "mainwindow.h"
-#include <QFormLayout>
-#include <QGroupBox>
 #include "doubleitemdelegate.h"
 
 MainWindow::MainWindow(
     QWidget *parent)
     : QMainWindow(parent)
 {
-    QWidget *central = new QWidget(this);
+    central = new QWidget(this);
     setCentralWidget(central);
-
-    QVBoxLayout *mainLayout = new QVBoxLayout(central);
+    mainLayout = new QVBoxLayout(central);
 
     //
     //
-    QHBoxLayout *inputLayout = new QHBoxLayout();
-
-    QGroupBox *sizeContainer = new QGroupBox(this);
-    QHBoxLayout *sizeLayout = new QHBoxLayout(sizeContainer);
+    sizeContainer = new QGroupBox(this);
+    sizeLayout = new QHBoxLayout(sizeContainer);
     sizeLayout->setContentsMargins(3, 3, 3, 3);
 
     sizeLayout->addWidget(new QLabel("Альтернативи:", this), 1);
@@ -39,19 +34,20 @@ MainWindow::MainWindow(
     connect(resizeButton, &QPushButton::clicked, this, &MainWindow::updateTableSize);
     sizeLayout->addWidget(resizeButton, 2);
 
-    QGroupBox *fileContainer = new QGroupBox(this);
-    QHBoxLayout *fileLayout = new QHBoxLayout(fileContainer);
+    fileContainer = new QGroupBox(this);
+    fileLayout = new QHBoxLayout(fileContainer);
     fileLayout->setContentsMargins(3, 3, 3, 3);
 
     filePathEdit = new QLineEdit(this);
     filePathEdit->setToolTip(
         "Введіть або виберіть шлях до файлу з даними для таблиці\n" "Кома, як роздільник між " "зна" "чен" "ням" "и, " "зчи" "тає" "тьс" "я " "некоректно");
-    QPushButton *loadButton = new QPushButton("Завантажити таблицю", this);
+    loadButton = new QPushButton("Завантажити таблицю", this);
     loadButton->setToolTip("Заповнити початкову таблицю");
     connect(loadButton, &QPushButton::clicked, this, &MainWindow::loadMatrixFromFile);
     fileLayout->addWidget(filePathEdit, 3);
     fileLayout->addWidget(loadButton, 2);
 
+    inputLayout = new QHBoxLayout();
     inputLayout->addWidget(sizeContainer, 5);
     inputLayout->addWidget(fileContainer, 4);
     mainLayout->addLayout(inputLayout);
@@ -61,17 +57,17 @@ MainWindow::MainWindow(
     //
 
     //
-    QGroupBox *optContainer = new QGroupBox("Мінімізація/Максимізація параметрів:", this);
-    optimizationLayout = new QHBoxLayout(optContainer);
-    optimizationLayout->setAlignment(Qt::AlignLeft);
-    optimizationLayout->setContentsMargins(20, 0, 3, 3);
-    optContainer->setToolTip(
-        "Після внесення змін рекомендовано перерахувати таблицю мінімізації " "та всі залежні " "ві" "д " "неї");
-    mainLayout->addWidget(optContainer);
+    minmaxContainer = new QGroupBox("Мінімізація/Максимізація параметрів:", this);
+    minmaxLayout = new QHBoxLayout(minmaxContainer);
+    minmaxLayout->setAlignment(Qt::AlignLeft);
+    minmaxLayout->setContentsMargins(20, 0, 3, 3);
+    minmaxContainer->setToolTip(
+        "Після внесення змін рекомендовано перерахувати таблицю " "мінімізації " "та всі залежні " "ві" "д " "неї");
+    mainLayout->addWidget(minmaxContainer);
     //
 
     //
-    QGroupBox *weightContainer = new QGroupBox("Коефіцієнти цінності:", this);
+    weightContainer = new QGroupBox("Коефіцієнти цінності:", this);
     weightsLayout = new QHBoxLayout(weightContainer);
     weightsLayout->setAlignment(Qt::AlignLeft);
     weightsLayout->setContentsMargins(20, 0, 3, 3);
@@ -80,7 +76,7 @@ MainWindow::MainWindow(
     //
 
     //
-    QGroupBox *checksContainer = new QGroupBox(this);
+    checksContainer = new QGroupBox(this);
     checksLayout = new QHBoxLayout(checksContainer);
     checksLayout->setAlignment(Qt::AlignLeft);
     checksLayout->setContentsMargins(55, 0, 0, 0);
@@ -104,13 +100,13 @@ MainWindow::MainWindow(
     valueFunctionTable = new QTableWidget(this);
     valueFunctionTable->setToolTip("Розрахунок скалярної функції цінності для єдиного вибору");
 
-    tab = new QWidget(this);
-
     graphSummaryTable = new QTableWidget(this);
     graphSummaryTable->setToolTip("Зведення мінімізованих параметрів для БДО");
 
     graphChecksLayout = new QVBoxLayout();
     updateParameterCheckboxes();
+
+    tab = new QWidget(this);
 
     graphScene = new QGraphicsScene(tab);
     graphView = new QGraphicsView(graphScene, tab);
@@ -582,19 +578,21 @@ void MainWindow::analyzeDominance()
 QVector<QString> MainWindow::getOptimizationTargets() const
 {
     QVector<QString> targets;
-    for (QComboBox *combo : optimizationCombos) {
+    for (QComboBox *combo : minmaxCombos) {
         targets.append(combo->currentText());
     }
     return targets;
 }
 
-QVector<QVector<double>> MainWindow::normalizeMatrix(
-    const QVector<QVector<double>> &matrix)
+void MainWindow::fillNormalizedTable()
 {
-    int numAlternatives = matrix.size();
-    int numCriteria = matrix[0].size();
+    // Зчитуємо матрицю зі значеннями з таблиці введення
+    QVector<QVector<double>> matrix = getMatrixFromTable(inputTable);
+
+    // Ініціалізуємо вектор для зберігання максимальних значень кожного параметра
     QVector<double> maxValues(numCriteria, 0.0);
 
+    // Знаходимо максимальні значення для кожного параметра
     for (int j = 0; j < numCriteria; j++) {
         for (int i = 0; i < numAlternatives; i++) {
             if (matrix[i][j] > maxValues[j]) {
@@ -603,32 +601,28 @@ QVector<QVector<double>> MainWindow::normalizeMatrix(
         }
     }
 
-    QVector<QVector<double>> normalized(numAlternatives, QVector<double>(numCriteria));
-    for (int i = 0; i < numAlternatives; i++) {
-        for (int j = 0; j < numCriteria; j++) {
-            normalized[i][j] = matrix[i][j] / maxValues[j];
-        }
-    }
+    // Обчислюємо нормалізовані значення та заповнюємо таблицю
+    for (int j = 0; j < numCriteria; j++) {
+        for (int i = 0; i < numAlternatives; i++) {
+            // Нормалізуємо значення (ділимо на максимальне для параметра)
+            double normalized = matrix[i][j] / maxValues[j];
 
-    return normalized;
-}
+            // Створюємо новий елемент таблиці з результатом (форматування до 3 цифр)
+            QTableWidgetItem *item = new QTableWidgetItem(QString::number(normalized, 'g', 3));
 
-void MainWindow::fillNormalizedTable()
-{
-    QVector<QVector<double>> matrix = getMatrixFromTable(inputTable);
-    QVector<QVector<double>> norm = normalizeMatrix(matrix);
+            // Робимо комірку нередагованою
+            item->setFlags(item->flags() & ~Qt::ItemIsEditable);
 
-    for (int i = 0; i < norm.size(); ++i) {
-        for (int j = 0; j < norm[i].size(); ++j) {
-            QTableWidgetItem *item = new QTableWidgetItem(QString::number(norm[i][j], 'g', 3));
-            item->setFlags(item->flags() & ~Qt::ItemIsEditable); // Заборонити редагування
+            // Встановлюємо комірку у відповідне місце в таблиці нормалізації
             normalizedTable->setItem(i, j, item);
         }
     }
 
+    // Перемикаємо вкладку на таблицю з результатами нормалізації
     int index = tabWidget->indexOf(normalizedTable);
     tabWidget->setCurrentIndex(index);
 
+    // Оновлюємо стан кнопок, зважаючи на те, що таблиця тепер заповнена
     updateButtonsState();
 }
 
@@ -914,9 +908,9 @@ void MainWindow::updateTableSize()
     initConnections();
     updateWeightInputs();
 
-    qDeleteAll(optimizationCombos);
-    clearLayout(optimizationLayout);
-    optimizationCombos.clear();
+    qDeleteAll(minmaxCombos);
+    clearLayout(minmaxLayout);
+    minmaxCombos.clear();
 
     for (int i = 0; i < numCriteria; ++i) {
         QComboBox *combo = new QComboBox();
@@ -924,26 +918,9 @@ void MainWindow::updateTableSize()
         combo->addItem("max");
         combo->setCurrentText("min");
         combo->setFixedWidth(partWidth);
-        optimizationCombos.append(combo);
-        optimizationLayout->addWidget(combo);
+        minmaxCombos.append(combo);
+        minmaxLayout->addWidget(combo);
     }
-}
-
-QVector<double> MainWindow::getWeights() const
-{
-    QVector<double> weights;
-    for (QLineEdit *edit : weightEdits) {
-        if (!edit->isEnabled())
-            continue;
-        bool ok = false;
-        double val = edit->text().toDouble(&ok);
-        if (!ok) {
-            QMessageBox::warning(nullptr, "Помилка", "Введено некоректне значення ваги.");
-            return {};
-        }
-        weights.append(val);
-    }
-    return weights;
 }
 
 QVector<bool> MainWindow::getSelectedColumnsMask() const

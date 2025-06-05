@@ -4,8 +4,8 @@
 #include <QFileDialog>
 #include <QGraphicsTextItem>
 #include <QGraphicsView>
+#include <QGroupBox>
 #include <QHBoxLayout>
-#include <QHeaderView>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMainWindow>
@@ -18,15 +18,6 @@
 #include <QVector>
 #include <QWidget>
 
-class QTableWidget;
-class QLineEdit;
-class QCheckBox;
-class QSpinBox;
-class QHBoxLayout;
-class QComboBox;
-class QLabel;
-class QPushButton;
-
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -35,80 +26,107 @@ public:
     MainWindow(QWidget *parent = nullptr);
 
 private slots:
+    // Основні дії користувача
     void plotGraph();
+    void analyzeDominance();
     void loadMatrixFromFile();
     void selectSingleOption();
-    void fillNormalizedTable();
     void fillMinimizedTable();
-    void analyzeDominance();
+    void fillNormalizedTable();
     void highlightRowWithMinValue();
+
+    // Перевірки та оновлення
+    void updateTableSize();
     bool validateTableData();
     bool validateWeightSum();
     void updateButtonsState();
-    void updateTableSize();
-    void updateParameterCheckboxes();
-    void updateGraphParameterCheckboxes();
     void updateWeightInputs();
-    void drawGraphAxes(QGraphicsScene *scene);
-    void onParameterCheckChanged(int);
-    void onParameterGraphCheckChanged(int);
-    void initConnections();
     void updateWeightsState();
+    void updateParameterCheckboxes();
+    void onParameterCheckChanged(int);
+    void updateGraphParameterCheckboxes();
+    void onParameterGraphCheckChanged(int);
+
+    // Допоміжні
+    void initConnections();
     void clearLayout(QLayout *layout);
-    QVector<QVector<double>> normalizeMatrix(const QVector<QVector<double>> &matrix);
+    void drawGraphAxes(QGraphicsScene *scene);
     void setupDoubleValidator(QLineEdit *edit);
     void setupTable(QTableWidget *table, int cols, const QStringList &headers);
 
 private:
-    int numAlternatives = 0;
-    int numCriteria = 0;
+    // Загальні налаштування
+    int numAlternatives = 0; // Кількість альтернатив (рядків)
+    int numCriteria = 0;     // Кількість критеріїв (стовпців)
     const int margin = 30;
-    const int width = 400;
-    const int height = 400;
-    const int partWidth = 94;
+    const int width = 400;    // Ширина графіка
+    const int height = 400;   // Висота графіка
+    const int partWidth = 94; // Ширина віджетів (для комбо/чекбоксів)
+
+    // Основні контейнери
+    QWidget *tab = nullptr;
+    QWidget *central = nullptr;
+
+    // Графічні елементи
     QGraphicsView *graphView = nullptr;
     QGraphicsScene *graphScene = nullptr;
-    QVBoxLayout *graphChecksLayout = nullptr;
-    QHBoxLayout *checksLayout = nullptr;
-    QHBoxLayout *weightsLayout = nullptr;
-    QHBoxLayout *optimizationLayout = nullptr;
-    QLineEdit *filePathEdit = nullptr;
 
-    // Ваги
+    // Головні Layout-и
+    QVBoxLayout *mainLayout = nullptr;
+    QVBoxLayout *graphChecksLayout = nullptr;
+    QHBoxLayout *sizeLayout = nullptr;
+    QHBoxLayout *fileLayout = nullptr;
+    QHBoxLayout *inputLayout = nullptr;
+    QHBoxLayout *checksLayout = nullptr;
+    QHBoxLayout *minmaxLayout = nullptr;
+    QHBoxLayout *weightsLayout = nullptr;
+
+    // Групи (рамки)
+    QGroupBox *sizeContainer = nullptr;
+    QGroupBox *fileContainer = nullptr;
+    QGroupBox *minmaxContainer = nullptr;
+    QGroupBox *weightContainer = nullptr;
+    QGroupBox *checksContainer = nullptr;
+
+    // Поля для ваг
     QVector<QLineEdit *> weightEdits;
 
-    // Параметри для графіка
-    QVector<QCheckBox *> parameterChecks;
-    QVector<QComboBox *> optimizationCombos;
-    QVector<QCheckBox *> graphParameterChecks;
+    // Параметри та опції
+    QVector<QComboBox *> minmaxCombos;         // комбо-бокси (min/max)
+    QVector<QCheckBox *> parameterChecks;      // чекбокси для параметрів
+    QVector<QCheckBox *> graphParameterChecks; // чекбокси для графіка
 
+    // Віджети введення
     QSpinBox *altSpin = nullptr;
     QSpinBox *critSpin = nullptr;
-    QTabWidget *tabWidget = nullptr;
+    QLineEdit *filePathEdit = nullptr;
 
     // Таблиці
     QTableWidget *inputTable = nullptr;
-    QTableWidget *normalizedTable = nullptr;
-    QTableWidget *minimizedTable = nullptr;
     QTableWidget *paretoTable = nullptr;
-    QTableWidget *valueFunctionTable = nullptr;
+    QTableWidget *minimizedTable = nullptr;
+    QTableWidget *normalizedTable = nullptr;
     QTableWidget *graphSummaryTable = nullptr;
+    QTableWidget *valueFunctionTable = nullptr;
 
     // Кнопки
-    QPushButton *resizeButton = nullptr;
-    QPushButton *fillNormButton = nullptr;
-    QPushButton *fillMinButton = nullptr;
-    QPushButton *analyzeDominanceButton = nullptr;
-    QPushButton *singleOptionButton = nullptr;
     QPushButton *plotButton = nullptr;
-    QWidget *tab = nullptr;
+    QPushButton *loadButton = nullptr;
+    QPushButton *resizeButton = nullptr;
+    QPushButton *fillMinButton = nullptr;
+    QPushButton *fillNormButton = nullptr;
+    QPushButton *singleOptionButton = nullptr;
+    QPushButton *analyzeDominanceButton = nullptr;
 
-    QVector<double> getWeights() const;
-    QVector<QString> getOptimizationTargets() const;
-    QVector<QVector<double>> getMatrixFromTable(QTableWidget *table) const;
-    QVector<int> getSelectedParameterIndexes() const;
-    bool isTableFilled(QTableWidget *table) const;
+    // Вкладка з графіком
+    QTabWidget *tabWidget = nullptr;
+
+    // Допоміжні методи
     QVector<bool> getSelectedColumnsMask() const;
-    QVector<double> getActiveWeights(const QVector<bool> &selectedCols) const;
+    bool isTableFilled(QTableWidget *table) const;
+    QVector<QString> getOptimizationTargets() const;
+    QVector<int> getSelectedParameterIndexes() const;
     bool isTableFilledOnlyForActiveColumns(QTableWidget *table) const;
+    QVector<QVector<double>> getMatrixFromTable(QTableWidget *table) const;
+    QVector<double> getActiveWeights(const QVector<bool> &selectedCols) const;
 };
