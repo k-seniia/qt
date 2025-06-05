@@ -55,14 +55,16 @@ private slots:
     void initConnections();
     void updateWeightsState();
     void clearLayout(QLayout *layout);
+    QVector<QVector<double>> normalizeMatrix(const QVector<QVector<double>> &matrix);
+    void setupDoubleValidator(QLineEdit *edit);
+    void setupTable(QTableWidget *table, int cols, const QStringList &headers);
 
 private:
-    bool weightFieldsTouched = false;
     int numAlternatives = 0;
     int numCriteria = 0;
     const int margin = 30;
-    const int width = 375;
-    const int height = 375;
+    const int width = 400;
+    const int height = 400;
     const int partWidth = 94;
     QGraphicsView *graphView = nullptr;
     QGraphicsScene *graphScene = nullptr;
@@ -106,9 +108,7 @@ private:
     QVector<QVector<double>> getMatrixFromTable(QTableWidget *table) const;
     QVector<int> getSelectedParameterIndexes() const;
     bool isTableFilled(QTableWidget *table) const;
-    QVector<int> getSelectedColumnIndices() const;
-    QVector<double> getActiveWeights(const QVector<int> &selectedCols) const;
+    QVector<bool> getSelectedColumnsMask() const;
+    QVector<double> getActiveWeights(const QVector<bool> &selectedCols) const;
     bool isTableFilledOnlyForActiveColumns(QTableWidget *table) const;
 };
-
-QVector<QVector<double>> normalizeMatrix(const QVector<QVector<double>> &matrix);
