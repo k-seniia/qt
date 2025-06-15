@@ -5,58 +5,66 @@ MainWindow::MainWindow(
     QWidget *parent)
     : QMainWindow(parent)
 {
+    // Ініціалізуємо центральний віджет і основне вертикальне розміщення
     central = new QWidget(this);
     setCentralWidget(central);
     mainLayout = new QVBoxLayout(central);
 
-    //
-    //
-    sizeContainer = new QGroupBox(this);
+    // --- Блок налаштування розмірів таблиць ---
+    sizeContainer = new QGroupBox(this); // Група для задання розмірів таблиць
     sizeLayout = new QHBoxLayout(sizeContainer);
     sizeLayout->setContentsMargins(3, 3, 3, 3);
 
+    // Додамо поле для задання кількості альтернатив (рядків)
     sizeLayout->addWidget(new QLabel("Альтернативи:", this), 1);
     altSpin = new QSpinBox(this);
     altSpin->setRange(2, 100);
-    altSpin->setValue(5);
+    altSpin->setValue(5); // За замовчуванням 5 рядків
     altSpin->setToolTip("Кількість рядків (від 2 до 100)");
     sizeLayout->addWidget(altSpin, 1);
 
+    // Додамо поле для задання кількості параметрів (стовпців)
     sizeLayout->addWidget(new QLabel("Параметри:", this), 1);
-    critSpin = new QSpinBox(this);
-    critSpin->setRange(2, 10);
-    critSpin->setValue(5);
-    critSpin->setToolTip("Кількість стовбців (від 2 до 10)");
-    sizeLayout->addWidget(critSpin, 1);
+    paramSpin = new QSpinBox(this);
+    paramSpin->setRange(2, 10);
+    paramSpin->setValue(5); // За замовчуванням 5 параметрів
+    paramSpin->setToolTip("Кількість стовбців (від 2 до 10)");
+    sizeLayout->addWidget(paramSpin, 1);
 
+    // Кнопка для оновлення таблиць згідно зі спінбоксами
     resizeButton = new QPushButton("Оновити таблицю", this);
     resizeButton->setToolTip("Оновлюються розміри усіх таблиць");
     connect(resizeButton, &QPushButton::clicked, this, &MainWindow::updateTableSize);
     sizeLayout->addWidget(resizeButton, 2);
 
+    // --- Блок для завантаження файлу ---
     fileContainer = new QGroupBox(this);
     fileLayout = new QHBoxLayout(fileContainer);
     fileLayout->setContentsMargins(3, 3, 3, 3);
 
+    // Поле для введення шляху до файлу
     filePathEdit = new QLineEdit(this);
     filePathEdit->setToolTip(
         "Введіть або виберіть шлях до файлу з даними для таблиці\n" "Кома, як роздільник між " "зна" "чен" "ням" "и, " "зчи" "тає" "тьс" "я " "некоректно");
+
+    // Кнопка для завантаження таблиці з файлу
     loadButton = new QPushButton("Завантажити таблицю", this);
     loadButton->setToolTip("Заповнити початкову таблицю");
     connect(loadButton, &QPushButton::clicked, this, &MainWindow::loadMatrixFromFile);
     fileLayout->addWidget(filePathEdit, 3);
     fileLayout->addWidget(loadButton, 2);
 
+    // Додамо блоки до основного горизонтального розміщення
     inputLayout = new QHBoxLayout();
     inputLayout->addWidget(sizeContainer, 5);
     inputLayout->addWidget(fileContainer, 4);
     mainLayout->addLayout(inputLayout);
 
+    // Зберігаємо значення кількості альтернатив і параметрів
     numAlternatives = altSpin->value();
-    numCriteria = critSpin->value();
-    //
+    numParameters = paramSpin->value();
 
-    //
+    // --- Блок для налаштування мінімізації/максимізації параметрів ---
     minmaxContainer = new QGroupBox("Мінімізація/Максимізація параметрів:", this);
     minmaxLayout = new QHBoxLayout(minmaxContainer);
     minmaxLayout->setAlignment(Qt::AlignLeft);
@@ -64,27 +72,23 @@ MainWindow::MainWindow(
     minmaxContainer->setToolTip(
         "Після внесення змін рекомендовано перерахувати таблицю " "мінімізації " "та всі залежні " "ві" "д " "неї");
     mainLayout->addWidget(minmaxContainer);
-    //
 
-    //
+    // --- Блок для введення коефіцієнтів цінності ---
     weightContainer = new QGroupBox("Коефіцієнти цінності:", this);
     weightsLayout = new QHBoxLayout(weightContainer);
     weightsLayout->setAlignment(Qt::AlignLeft);
     weightsLayout->setContentsMargins(20, 0, 3, 3);
     mainLayout->addWidget(weightContainer);
-    updateWeightInputs();
-    //
 
-    //
+    // Ініціалізуємо поля для введення коефіцієнтів цінності
     checksContainer = new QGroupBox(this);
     checksLayout = new QHBoxLayout(checksContainer);
     checksLayout->setAlignment(Qt::AlignLeft);
     checksLayout->setContentsMargins(55, 0, 0, 0);
     checksContainer->setToolTip("Після внесення змін рекомендовано перерахувати ПО та Ф. цінності");
     mainLayout->addWidget(checksContainer);
-    //
 
-    //
+    // --- Таблиці для різних етапів ---
     inputTable = new QTableWidget(this);
     inputTable->setToolTip("Введіть початкові значення параметрів");
 
@@ -103,41 +107,34 @@ MainWindow::MainWindow(
     graphSummaryTable = new QTableWidget(this);
     graphSummaryTable->setToolTip("Зведення мінімізованих параметрів для БДО");
 
+    // --- Налаштування графіка ---
     graphChecksLayout = new QVBoxLayout();
-    updateParameterCheckboxes();
-
     tab = new QWidget(this);
-
     graphScene = new QGraphicsScene(tab);
     graphView = new QGraphicsView(graphScene, tab);
-    graphView->setMinimumHeight(350); // Висота графіка
+    graphView->setMinimumHeight(350); // Мінімальна висота графіка
 
-    QHBoxLayout *graphLayout = new QHBoxLayout(tab);
+    graphLayout = new QHBoxLayout(tab);
     graphLayout->addWidget(graphSummaryTable);
     graphLayout->addLayout(graphChecksLayout);
     graphLayout->addWidget(graphView);
     graphLayout->setContentsMargins(0, 0, 0, 0);
-    drawGraphAxes(graphScene);
-    updateGraphParameterCheckboxes();
-    //
 
+    // --- Додамо делегат для редагування десяткових чисел у inputTable ---
     auto *doubleDelegate = new DoubleItemDelegate(this);
     inputTable->setItemDelegate(doubleDelegate);
 
-    //
+    // --- Налаштовуємо вкладки ---
     tabWidget = new QTabWidget(this);
-
     tabWidget->addTab(inputTable, "Введення даних");
     tabWidget->addTab(normalizedTable, "Нормалізовані значення");
     tabWidget->addTab(minimizedTable, "Зведення до мінімізації");
     tabWidget->addTab(paretoTable, "Парето-оптимізація");
     tabWidget->addTab(valueFunctionTable, "Вибір єдиного варіанта");
     tabWidget->addTab(tab, "БДО");
-
     mainLayout->addWidget(tabWidget);
-    //
-    //
 
+    // --- Кнопки управління розрахунками ---
     fillNormButton = new QPushButton("Нормалізація значень", this);
     connect(fillNormButton, &QPushButton::clicked, this, [this]() {
         if (!validateTableData())
@@ -175,7 +172,8 @@ MainWindow::MainWindow(
     plotButton->setToolTip(
         "Побудувати двовимірний графік для обраних параметрів\nПотребує таблицю " "мінімізації та " "ДВА обраних " "параметри на вкладці БДО");
 
-    QHBoxLayout *buttonLayout = new QHBoxLayout();
+    // Розміщення кнопок
+    buttonLayout = new QHBoxLayout();
     buttonLayout->addWidget(fillNormButton);
     buttonLayout->addWidget(fillMinButton);
     buttonLayout->addWidget(analyzeDominanceButton);
@@ -183,14 +181,18 @@ MainWindow::MainWindow(
     buttonLayout->addWidget(plotButton);
     mainLayout->addLayout(buttonLayout);
 
-    initConnections();
-    updateTableSize();
+    initConnections();                // Підключаємо сигнали
+    updateTableSize();                // Оновлюємо розміри таблиць
+    updateWeightInputs();             // Ініціалізуємо поля для введення коефіцієнтів цінності
+    updateParameterCheckboxes();      // Ініціалізація чекбоксів
+    drawGraphAxes(graphScene);        // Малюємо осі графіка
+    updateGraphParameterCheckboxes(); // Ініціалізація чекбоксів графіка
 }
 
 QVector<int> MainWindow::getSelectedParameterIndexes() const
 {
     QVector<int> selected;
-    for (int i = 0; i < numCriteria; ++i) {
+    for (int i = 0; i < numParameters; ++i) {
         if (parameterChecks[i]->isChecked())
             selected.append(i);
     }
@@ -199,25 +201,29 @@ QVector<int> MainWindow::getSelectedParameterIndexes() const
 
 void MainWindow::plotGraph()
 {
+    // Очищаємо попередній графік і таблицю
     graphScene->clear();
     graphSummaryTable->clearContents();
     graphSummaryTable->setRowCount(0);
 
+    // Збираємо індекси обраних чекбоксів (параметри для графіка)
     QVector<int> selectedColumns;
-    for (int i = 0; i < numCriteria; ++i)
+    for (int i = 0; i < numParameters; ++i)
         if (graphParameterChecks[i]->isChecked())
             selectedColumns.append(i);
 
+    // Перевірка: повинно бути обрано рівно 2 параметри
     if (selectedColumns.size() != 2) {
         QMessageBox::warning(this, "Помилка", "Оберіть рівно 2 параметри для побудови БДО.");
         return;
     }
 
-    int xCol = selectedColumns[0];
-    int yCol = selectedColumns[1];
+    int xCol = selectedColumns[0]; // Індекс параметра X
+    int yCol = selectedColumns[1]; // Індекс параметра Y
 
+    // Збір точок (параметрів X та Y) для кожного рядка
     QVector<QPointF> points;
-    QVector<int> rowIndices;
+    QVector<int> rowIndices; // Зберігаємо номери рядків
     int rows = numAlternatives;
     for (int i = 0; i < rows; ++i) {
         bool ok1, ok2;
@@ -229,56 +235,68 @@ void MainWindow::plotGraph()
         }
     }
 
+    // Якщо не зібрано жодної коректної точки — припиняємо побудову
     if (points.isEmpty())
         return;
 
-    // Аналіз домінування
-    QVector<bool> isPareto(points.size(), true);
-    QVector<QString> dominanceInfo(points.size(), "ПО");
+    // --- Аналіз домінування для знайдених точок ---
+    QVector<bool> isPareto(points.size(), true); // Масив для визначення Парето-оптимальності
+    QVector<QString> dominanceInfo(points.size(), "ПО"); // Підпис "ПО" або "БГ до N"
 
     for (int i = 0; i < points.size(); ++i) {
         for (int j = 0; j < points.size(); ++j) {
             if (i == j)
                 continue;
+
+            // Якщо точка j домінує над i (по обох координатах)
             if ((points[j].x() <= points[i].x() && points[j].y() <= points[i].y())
                 && (points[j].x() < points[i].x() || points[j].y() < points[i].y())) {
                 isPareto[i] = false;
-                dominanceInfo[i] = "БГ до " + QString::number(rowIndices[j] + 1);
+                dominanceInfo[i] = "БГ до "
+                                   + QString::number(rowIndices[j]
+                                                     + 1); // Додаємо індекс, хто домінує
                 break;
             }
         }
     }
 
+    // Малюємо осі графіка
     drawGraphAxes(graphScene);
 
-    // Побудова точок і таблички
+    // Налаштовуємо таблицю: кількість рядків та заголовки
     graphSummaryTable->setRowCount(points.size());
     graphSummaryTable->setColumnCount(3);
     graphSummaryTable->setHorizontalHeaderLabels({"X", "Y", "Статус"});
 
+    // Додаємо точки та підписи до графіка і таблиці
     for (int i = 0; i < points.size(); ++i) {
         const QPointF &p = points[i];
+
+        // Перетворюємо координати точки для сцени
         double sceneX = margin + p.x() * width;
         double sceneY = margin + (1.0 - p.y()) * height;
 
+        // Вибираємо колір: синій для ПО, червоний для БГ
         QColor color = isPareto[i] ? Qt::blue : Qt::red;
         graphScene->addEllipse(sceneX - 3, sceneY - 3, 6, 6, QPen(color), QBrush(color));
 
-        // Додати номер рядка біля точки
+        // Додаємо підпис (номер рядка)
         QGraphicsTextItem *label = graphScene->addText(QString::number(rowIndices[i] + 1));
         label->setPos(sceneX + 5, sceneY - 10);
 
-        // Додати до таблички
+        // Додаємо значення у таблицю
         graphSummaryTable->setItem(i, 0, new QTableWidgetItem(QString::number(p.x(), 'g', 3)));
         graphSummaryTable->setItem(i, 1, new QTableWidgetItem(QString::number(p.y(), 'g', 3)));
         graphSummaryTable->setItem(i, 2, new QTableWidgetItem(dominanceInfo[i]));
 
+        // Якщо точка не є ПО — виділяємо червоним фоном
         if (!isPareto[i]) {
             for (int j = 0; j < 3; ++j)
                 graphSummaryTable->item(i, j)->setBackground(QColor(255, 200, 200));
         }
     }
 
+    // Показуємо вкладку з графіком
     int index = tabWidget->indexOf(tab);
     tabWidget->setCurrentIndex(index);
 }
@@ -482,67 +500,72 @@ void MainWindow::initConnections()
 
 void MainWindow::analyzeDominance()
 {
+    // Отримуємо з таблиці minimizedTable матрицю, що містить числові значення
     const QVector<QVector<double>> matrix = getMatrixFromTable(minimizedTable);
 
-    // 1. Збір індексів обраних параметрів
+    // Отримуємо індекси параметрів (стовпців), обраних користувачем
     QVector<int> selectedCols = getSelectedParameterIndexes();
 
-    // Якщо не вибрано — беремо всі
+    // Якщо користувач не вибрав жодного параметра, використовуємо всі
     if (selectedCols.isEmpty()) {
         for (int i = 0; i < parameterChecks.size(); ++i)
             selectedCols.append(i);
     }
 
+    // Заповнюємо таблицю paretoTable: активні параметри — значення, неактивні — сірий фон
     for (int row = 0; row < numAlternatives; ++row) {
-        for (int col = 0; col < numCriteria; ++col) {
+        for (int col = 0; col < numParameters; ++col) {
             QTableWidgetItem *item = new QTableWidgetItem;
             if (selectedCols.contains(col)) {
                 double sourceItem = matrix[row][col];
                 item->setText(QString::number(sourceItem, 'g', 3));
             } else {
-                item->setText(""); // залишити порожнім
-                item->setFlags(item->flags() & ~Qt::ItemIsEditable);
-                item->setBackground(QBrush(QColor(230, 230, 230))); // сірий для неактивних
+                item->setText("");                                  // Порожня клітинка
+                item->setBackground(QBrush(QColor(230, 230, 230))); // Сірий фон для неактивних
             }
-            item->setFlags(item->flags() & ~Qt::ItemIsEditable);
+            item->setFlags(item->flags() & ~Qt::ItemIsEditable); // Забороняємо редагування
             paretoTable->setItem(row, col, item);
         }
     }
 
-    QVector<QPair<int, int>> worsePairs;
-    QVector<int> excluded;
+    // Аналіз Парето-домінування: формуємо список "гірших" (dominated) альтернатив
+    QVector<QPair<int, int>> worsePairs; // Пара: (хто домінований, хто домінує)
+    QVector<int> excluded;               // Індекси домінованих альтернатив
     for (int i = 0; i < matrix.size(); i++) {
         if (excluded.contains(i))
-            continue;
+            continue; // Пропускаємо вже виключених
         for (int j = 0; j < matrix.size(); j++) {
             if (i == j || excluded.contains(j))
-                continue;
+                continue; // Пропускаємо порівняння з собою або з виключеними
 
-            bool dom = true;
-            bool strictlyBetter = false;
+            bool dom = true;             // Чи домінує i над j
+            bool strictlyBetter = false; // Чи є хоча б один строго кращий критерій
 
-            for (int col : selectedCols) {
+            for (int col : selectedCols) { // Перевірка по всіх обраних критеріях
                 if (matrix[i][col] > matrix[j][col]) {
-                    dom = false;
+                    dom = false; // Якщо хоч один критерій гірший — не домінує
                     break;
                 } else if (matrix[i][col] < matrix[j][col]) {
-                    strictlyBetter = true;
+                    strictlyBetter = true; // Якщо є строго кращий критерій
                 }
             }
 
             if (dom && strictlyBetter) {
-                worsePairs.append({j, i});
-                excluded.append(j);
+                worsePairs.append({j, i}); // Додаємо пару: j — домінований, i — домінує
+                excluded.append(j);        // Виключаємо j
             }
         }
     }
 
+    // Колір для рядків, що є домінованими
     const QColor rowColor = QColor(255, 200, 200);
 
+    // Заповнюємо останню колонку таблиці (Статус) та виділяємо доміновані рішення
     for (int i = 0; i < matrix.size(); ++i) {
         QTableWidgetItem *item = new QTableWidgetItem;
 
         if (excluded.contains(i)) {
+            // Якщо рядок домінований — записуємо, ким саме
             int dominator = -1;
             for (const auto &pair : worsePairs) {
                 if (pair.first == i) {
@@ -550,14 +573,16 @@ void MainWindow::analyzeDominance()
                     break;
                 }
             }
-            item->setText("БГ до " + QString::number(dominator + 1));
+            item->setText("БГ до "
+                          + QString::number(dominator + 1)); // +1 для зручності (нумерація з 1)
         } else {
-            item->setText("ПО");
+            item->setText("ПО"); // Якщо не домінований — Парето-оптимальний
         }
 
         item->setFlags(item->flags() & ~Qt::ItemIsEditable); // Заборонити редагування
-        paretoTable->setItem(i, matrix[0].size(), item);
+        paretoTable->setItem(i, matrix[0].size(), item);     // Записуємо у останню колонку (Статус)
 
+        // Якщо домінований — виділяємо увесь рядок кольором
         if (excluded.contains(i)) {
             int colCount = paretoTable->columnCount();
             for (int j = 0; j < colCount; ++j) {
@@ -569,9 +594,11 @@ void MainWindow::analyzeDominance()
         }
     }
 
+    // Перемикаємося на вкладку з результатами Парето-аналізу
     int index = tabWidget->indexOf(paretoTable);
     tabWidget->setCurrentIndex(index);
 
+    // Оновлюємо стан кнопок, щоб дозволити подальші дії (наприклад, пошук єдиного варіанту)
     updateButtonsState();
 }
 
@@ -590,10 +617,10 @@ void MainWindow::fillNormalizedTable()
     QVector<QVector<double>> matrix = getMatrixFromTable(inputTable);
 
     // Ініціалізуємо вектор для зберігання максимальних значень кожного параметра
-    QVector<double> maxValues(numCriteria, 0.0);
+    QVector<double> maxValues(numParameters, 0.0);
 
     // Знаходимо максимальні значення для кожного параметра
-    for (int j = 0; j < numCriteria; j++) {
+    for (int j = 0; j < numParameters; j++) {
         for (int i = 0; i < numAlternatives; i++) {
             if (matrix[i][j] > maxValues[j]) {
                 maxValues[j] = matrix[i][j];
@@ -602,7 +629,7 @@ void MainWindow::fillNormalizedTable()
     }
 
     // Обчислюємо нормалізовані значення та заповнюємо таблицю
-    for (int j = 0; j < numCriteria; j++) {
+    for (int j = 0; j < numParameters; j++) {
         for (int i = 0; i < numAlternatives; i++) {
             // Нормалізуємо значення (ділимо на максимальне для параметра)
             double normalized = matrix[i][j] / maxValues[j];
@@ -628,34 +655,35 @@ void MainWindow::fillNormalizedTable()
 
 void MainWindow::fillMinimizedTable()
 {
+    // Отримуємо нормалізовану матрицю
     QVector<QVector<double>> norm = getMatrixFromTable(normalizedTable);
+
+    // Отримуємо список цільових функцій (мінімізація/максимізація) для кожного параметра
     QVector<QString> targets = getOptimizationTargets();
 
-    //minimizedTable->setColumnCount(norm[0].size() + 1);
-    QStringList headers;
-    for (int j = 0; j < norm[0].size(); ++j)
-        headers << QString("Параметр %1").arg(j + 1);
-    headers << "Статус";
-    minimizedTable->setHorizontalHeaderLabels(headers);
-
-    minimizedTable->clear();
-
-    for (int i = 0; i < numAlternatives; ++i) {
-        for (int j = 0; j < numCriteria; ++j) {
+    // Проходимо всі елементи матриці і виконуємо перетворення
+    for (int i = 0; i < numAlternatives; ++i) {   // Проходимо по кожному рядку
+        for (int j = 0; j < numParameters; ++j) { // Проходимо по кожному стовпцю
             double value = norm[i][j];
+
+            // Якщо критерій потрібно максимізувати, перетворюємо його на "мінімізацію"
+            // за формулою: 1 - значення
             if (targets[j] == "max") {
                 value = 1.0 - value;
             }
 
+            // Створюємо елемент таблиці з потрібним значенням
             QTableWidgetItem *item = new QTableWidgetItem(QString::number(value, 'g', 3));
-            item->setFlags(item->flags() & ~Qt::ItemIsEditable); // Заборонити редагування
-            minimizedTable->setItem(i, j, item);
+            item->setFlags(item->flags() & ~Qt::ItemIsEditable); // Забороняємо редагування
+            minimizedTable->setItem(i, j, item);                 // Додаємо у відповідну клітинку
         }
     }
 
+    // Після заповнення, відображаємо вкладку з таблицею зведення до мінімізації
     int index = tabWidget->indexOf(minimizedTable);
     tabWidget->setCurrentIndex(index);
 
+    // Оновлюємо стан кнопок відповідно до змін у таблиці
     updateButtonsState();
 }
 
@@ -704,7 +732,7 @@ bool MainWindow::validateWeightSum()
         if (!edit->isEnabled())
             continue;
         if (sumError && allValid) {
-            QString tip = QString("Сума всіх активних ваг: %1 (має бути 1.0)").arg(sum, 0, 'g', 3);
+            QString tip = QString("Сума всіх активних полів: %1 (має бути 1.0)").arg(sum, 0, 'g', 3);
             edit->setToolTip(tip);
         } else if (!allValid && edit->toolTip().isEmpty()) {
             edit->setToolTip("");
@@ -751,7 +779,7 @@ void MainWindow::updateWeightInputs()
 
     clearLayout(weightsLayout);
 
-    int cols = numCriteria;
+    int cols = numParameters;
 
     // Визначаємо вибрані чекбокси
     int selectedCount = 0;
@@ -822,7 +850,7 @@ void MainWindow::updateGraphParameterCheckboxes()
     }
     graphParameterChecks.clear();
 
-    for (int i = 0; i < numCriteria; ++i) {
+    for (int i = 0; i < numParameters; ++i) {
         QCheckBox *check = new QCheckBox(QString::number(i + 1), this);
         check->setFixedWidth(partWidth);
         graphParameterChecks.append(check);
@@ -840,7 +868,7 @@ void MainWindow::updateParameterCheckboxes()
     }
     parameterChecks.clear();
 
-    for (int i = 0; i < numCriteria; ++i) {
+    for (int i = 0; i < numParameters; ++i) {
         QCheckBox *check = new QCheckBox(QString::number(i + 1), this);
         check->setFixedWidth(partWidth);
         parameterChecks.append(check);
@@ -890,16 +918,16 @@ void MainWindow::setupTable(
 void MainWindow::updateTableSize()
 {
     numAlternatives = altSpin->value();
-    numCriteria = critSpin->value();
+    numParameters = paramSpin->value();
 
     QStringList headers;
-    for (int i = 0; i < numCriteria; ++i)
+    for (int i = 0; i < numParameters; ++i)
         headers << QString("Параметр %1").arg(i + 1);
-    setupTable(inputTable, numCriteria, headers);
-    setupTable(normalizedTable, numCriteria, headers);
-    setupTable(minimizedTable, numCriteria, headers);
+    setupTable(inputTable, numParameters, headers);
+    setupTable(normalizedTable, numParameters, headers);
+    setupTable(minimizedTable, numParameters, headers);
     headers << "Статус";
-    setupTable(paretoTable, (numCriteria + 1), headers);
+    setupTable(paretoTable, (numParameters + 1), headers);
     setupTable(valueFunctionTable, 2, {"Розрахунок", "Ф. цінності"});
     setupTable(graphSummaryTable, 3, {"Параметр X", "Параметр Y", "Статус"});
 
@@ -912,7 +940,7 @@ void MainWindow::updateTableSize()
     clearLayout(minmaxLayout);
     minmaxCombos.clear();
 
-    for (int i = 0; i < numCriteria; ++i) {
+    for (int i = 0; i < numParameters; ++i) {
         QComboBox *combo = new QComboBox();
         combo->addItem("min");
         combo->addItem("max");
@@ -925,7 +953,7 @@ void MainWindow::updateTableSize()
 
 QVector<bool> MainWindow::getSelectedColumnsMask() const
 {
-    QVector<bool> selectedCols(numCriteria, false);
+    QVector<bool> selectedCols(numParameters, false);
     bool anyChecked = false;
 
     for (int i = 0; i < parameterChecks.size(); ++i) {
@@ -966,55 +994,72 @@ QVector<double> MainWindow::getActiveWeights(
 
 void MainWindow::selectSingleOption()
 {
+    // Очищаємо таблицю valueFunctionTable перед новими розрахунками
     valueFunctionTable->clearContents();
 
+    // Отримуємо матрицю мінімізованих значень з minimizedTable
     const QVector<QVector<double>> matrix = getMatrixFromTable(minimizedTable);
+
+    // Отримуємо маску активних (обраних) параметрів (true - активний)
     const QVector<bool> selectedCols = getSelectedColumnsMask();
+
+    // Отримуємо ваги для активних параметрів
     const QVector<double> activeWeights = getActiveWeights(selectedCols);
 
+    // Перевірка: якщо ваги некоректні (порожні), показуємо попередження і припиняємо обчислення
     if (activeWeights.isEmpty()) {
-        QMessageBox::warning(this, "Помилка", "Некоректне значення ваги.");
+        QMessageBox::warning(this, "Помилка", "Некоректне значення коефіцієнту цінності");
         return;
     }
 
+    // Перевірка: кількість активних ваг має збігатися з кількістю вибраних параметрів
     int activeCount = std::count(selectedCols.begin(), selectedCols.end(), true);
     if (activeWeights.size() != activeCount) {
         QMessageBox::warning(this,
                              "Помилка",
-                             "Кількість ваг не відповідає кількості вибраних критеріїв.");
+                             "Кількість полів не відповідає кількості вибраних параметрів");
         return;
     }
 
+    // Розрахунок скалярної функції цінності для кожного рядка (альтернативи)
     for (int row = 0; row < matrix.size(); ++row) {
+        // Отримуємо статус рядка (ПО або БГ)
         QString status = paretoTable->item(row, paretoTable->columnCount() - 1)->text();
         if (status == "ПО") {
-            double value = 0.0;
-            QStringList formulaParts;
-            int weightIdx = 0;
+            // Якщо альтернатива є Парето-оптимальною — виконуємо обчислення
+            double value = 0.0;       // Значення скалярної функції
+            QStringList formulaParts; // Частини формули для візуалізації
+            int weightIdx = 0;        // Індекс активної ваги
+
+            // Проходимо по всіх стовпцях і формуємо розрахунок для активних
             for (int col = 0; col < selectedCols.size(); ++col) {
                 if (!selectedCols[col])
-                    continue;
-                double criterion = matrix[row][col];
-                double weight = activeWeights[weightIdx++];
-                value += criterion * weight;
+                    continue; // Пропускаємо неактивні стовпці
+
+                double parameter = matrix[row][col];        // Критерій
+                double weight = activeWeights[weightIdx++]; // Вага
+                value += parameter * weight;                // Додаємо внесок до суми
                 formulaParts << QString::number(weight, 'g', 3) + "*"
-                                    + QString::number(criterion, 'g', 3);
+                                    + QString::number(parameter, 'g', 3); // Формула (вага*значення)
             }
 
+            // Формуємо текст формули для відображення у таблиці
             QString formula = formulaParts.join(" + ") + " = ";
             QTableWidgetItem *formulaItem = new QTableWidgetItem(formula);
             formulaItem->setFlags(formulaItem->flags() & ~Qt::ItemIsEditable);
             valueFunctionTable->setItem(row, 0, formulaItem);
 
+            // Записуємо саме значення скалярної функції
             QTableWidgetItem *item = new QTableWidgetItem(QString::number(value, 'g', 4));
             item->setFlags(item->flags() & ~Qt::ItemIsEditable);
             valueFunctionTable->setItem(row, 1, item);
         } else {
+            // Якщо альтернатива не є ПО — виділяємо рядок червоним кольором
             const QColor rowColor = QColor(255, 200, 200);
             for (int j = 0; j < valueFunctionTable->columnCount(); ++j) {
                 QTableWidgetItem *cellItem = valueFunctionTable->item(row, j);
                 if (!cellItem) {
-                    cellItem = new QTableWidgetItem();
+                    cellItem = new QTableWidgetItem("");
                     valueFunctionTable->setItem(row, j, cellItem);
                 }
                 cellItem->setBackground(QBrush(rowColor));
@@ -1022,9 +1067,13 @@ void MainWindow::selectSingleOption()
         }
     }
 
+    // Виділяємо рядок з мінімальним значенням скалярної функції (найкращий варіант)
     highlightRowWithMinValue();
+
+    // Підганяємо ширину стовпця формули під його вміст
     valueFunctionTable->resizeColumnToContents(0);
 
+    // Перемикаємося на вкладку з результатами розрахунку
     int index = tabWidget->indexOf(valueFunctionTable);
     tabWidget->setCurrentIndex(index);
 }

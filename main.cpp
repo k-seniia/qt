@@ -1,15 +1,25 @@
-#include <QApplication>
-#include "mainwindow.h"
+#include <QApplication> // Основний клас для управління життєвим циклом Qt-програми
+#include "mainwindow.h" // Заголовочний файл з визначенням класу MainWindow
 
 int main(
     int argc, char *argv[])
 {
+    // Ініціалізуємо об'єкт QApplication.
+    // Він обробляє параметри командного рядка (argc, argv) і керує основним циклом подій.
     QApplication app(argc, argv);
 
+    // Створюємо об'єкт головного вікна програми (наш інтерфейс).
     MainWindow window;
+
+    // Встановлюємо заголовок головного вікна.
     window.setWindowTitle("Багатокритеріальна оптимізація");
+
+    // Встановлюємо початковий розмір головного вікна.
     window.resize(1100, 400);
+
+    // Відображаємо головне вікно на екрані.
     window.show();
 
+    // Запускаємо головний цикл подій (починається виконання програми).
     return app.exec();
 }

@@ -1,22 +1,42 @@
-#include <QCheckBox>
-#include <QComboBox>
-#include <QFile>
-#include <QFileDialog>
-#include <QGraphicsTextItem>
-#include <QGraphicsView>
-#include <QGroupBox>
-#include <QHBoxLayout>
-#include <QLabel>
-#include <QLineEdit>
-#include <QMainWindow>
-#include <QMessageBox>
-#include <QPushButton>
-#include <QSpinBox>
-#include <QTableWidget>
-#include <QTextStream>
-#include <QVBoxLayout>
-#include <QVector>
-#include <QWidget>
+#include <QAbstractItemModel>   // Базовий клас для моделей даних
+#include <QBrush>               // Кольори фону
+#include <QCheckBox>            // Чекбокси для вибору параметрів
+#include <QColor>               // Кольори
+#include <QComboBox>            // Комбо-бокси для min/max
+#include <QFile>                // Для роботи з файлами
+#include <QFileDialog>          // Діалог вибору файлу
+#include <QGraphicsScene>       // Сцена для графіка
+#include <QGraphicsTextItem>    // Текст на графіку
+#include <QGraphicsView>        // Відображення графіка
+#include <QGroupBox>            // Групування віджетів
+#include <QHBoxLayout>          // Горизонтальні контейнери
+#include <QHeaderView>          // Налаштування заголовків таблиць
+#include <QIODevice>            // Базовий клас для вводу/виводу
+#include <QLabel>               // Текстові надписи
+#include <QLayout>              // Базовий клас для layout'ів
+#include <QLayoutItem>          // Елементи layout'ів
+#include <QLineEdit>            // Поля для введення (наприклад, ваг)
+#include <QMainWindow>          // Основне вікно
+#include <QMessageBox>          // Вікно повідомлень
+#include <QModelIndex>          // Індексація в таблицях/деревах
+#include <QObject>              // Базовий клас для об’єктів з сигналами/слотами
+#include <QPair>                // Пари (наприклад, для домінування)
+#include <QPen>                 // Ручки для малювання графіків
+#include <QPointF>              // 2D-точки для графіків
+#include <QPushButton>          // Кнопки
+#include <QRectF>               // Прямокутники у графіках
+#include <QSpinBox>             // Спінбокси для введення чисел
+#include <QString>              // Рядки
+#include <QStringList>          // Списки рядків
+#include <QStyleOptionViewItem> // Стилі для делегатів
+#include <QTabWidget>           // Вкладки
+#include <QTableWidget>         // Таблиці даних
+#include <QTableWidgetItem>     // Елементи таблиць
+#include <QTextStream>          // Зчитування та запис файлів
+#include <QVBoxLayout>          // Вертикальні контейнери
+#include <QVector>              // Вектори даних
+#include <QWidget>              // Базовий віджет
+#include <QtAlgorithms>         // qSort, qMin, qMax тощо
 
 class MainWindow : public QMainWindow
 {
@@ -57,7 +77,7 @@ private slots:
 private:
     // Загальні налаштування
     int numAlternatives = 0; // Кількість альтернатив (рядків)
-    int numCriteria = 0;     // Кількість критеріїв (стовпців)
+    int numParameters = 0;   // Кількість критеріїв (стовпців)
     const int margin = 30;
     const int width = 400;    // Ширина графіка
     const int height = 400;   // Висота графіка
@@ -66,6 +86,9 @@ private:
     // Основні контейнери
     QWidget *tab = nullptr;
     QWidget *central = nullptr;
+
+    // Вкладка з графіком
+    QTabWidget *tabWidget = nullptr;
 
     // Графічні елементи
     QGraphicsView *graphView = nullptr;
@@ -76,9 +99,11 @@ private:
     QVBoxLayout *graphChecksLayout = nullptr;
     QHBoxLayout *sizeLayout = nullptr;
     QHBoxLayout *fileLayout = nullptr;
+    QHBoxLayout *graphLayout = nullptr;
     QHBoxLayout *inputLayout = nullptr;
     QHBoxLayout *checksLayout = nullptr;
     QHBoxLayout *minmaxLayout = nullptr;
+    QHBoxLayout *buttonLayout = nullptr;
     QHBoxLayout *weightsLayout = nullptr;
 
     // Групи (рамки)
@@ -98,7 +123,7 @@ private:
 
     // Віджети введення
     QSpinBox *altSpin = nullptr;
-    QSpinBox *critSpin = nullptr;
+    QSpinBox *paramSpin = nullptr;
     QLineEdit *filePathEdit = nullptr;
 
     // Таблиці
@@ -117,9 +142,6 @@ private:
     QPushButton *fillNormButton = nullptr;
     QPushButton *singleOptionButton = nullptr;
     QPushButton *analyzeDominanceButton = nullptr;
-
-    // Вкладка з графіком
-    QTabWidget *tabWidget = nullptr;
 
     // Допоміжні методи
     QVector<bool> getSelectedColumnsMask() const;

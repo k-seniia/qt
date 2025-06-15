@@ -1,7 +1,10 @@
 #ifndef DOUBLEITEMDELEGATE_H
 #define DOUBLEITEMDELEGATE_H
 
-#include <QStyledItemDelegate>
+#include <QLineEdit>                   // Поля для введення (наприклад, ваг)
+#include <QRegularExpression>          // Шаблони для валідації
+#include <QRegularExpressionValidator> // Валідація введення
+#include <QStyledItemDelegate>         // Клас делегата для обробки введення в QTableWidget
 
 class DoubleItemDelegate : public QStyledItemDelegate
 {

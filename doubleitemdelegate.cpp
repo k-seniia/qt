@@ -1,7 +1,4 @@
 #include "doubleitemdelegate.h"
-#include <QLineEdit>
-#include <QRegularExpression>
-#include <QRegularExpressionValidator>
 
 DoubleItemDelegate::DoubleItemDelegate(
     QObject *parent)
